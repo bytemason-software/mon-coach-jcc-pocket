@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "appVersion": "2.0.0",
+  "appDownloadUrl": "",
+  "updatedAt": "2026-09-21",
+  "archetypes": [
+    { "name": "Méga-Lucario ex / Lucario", "tip": "Fighting Pulse ne monte à 140 dégâts (OHKO) qu'à 3 énergies Combat attachées — avant ça il ne tape qu'à 90. Mets la pression tôt, avant ce palier. Un attaquant peu faible au Combat (Méga-Altaria ex) lui pose beaucoup de problèmes." },
+    { "name": "Méga-Altaria ex / Mentali", "tip": "Mentali endort ton actif (Hypnoblast) pendant que Méga-Altaria ex encaisse les dégâts — garde un moyen de soigner/éviter le Sommeil. Méga-Altaria ex n'a que 190 PV : vise-le directement dès que possible." },
+    { "name": "Papilusion / Méga-Jungko ex", "tip": "Évolution Plante accélérée qui monte vite en dégâts mais craint la disruption de banc (36% de victoires face à Apireine ex/Caratroc ex). Ralentis-le en perturbant son banc plutôt qu'en cherchant la course aux dégâts." },
+    { "name": "Apireine ex / Caratroc ex", "tip": "Chase Order passe de 70 à 140 dégâts si le joueur défausse un Basique de son propre banc — coupe ce moteur en neutralisant ses petits Basiques. Apireine ex n'a que 140 PV : cible de KO prioritaire une fois repérée." },
+    { "name": "Suicune ex / Glaivodo", "tip": "S'installe et scale très vite s'il a le temps (80% de victoires contre les decks lents) mais s'effondre sous la pression et la disruption de pioche (38% contre Dedenne ex/Wimessir ex). Mets la pression dès les premiers tours, ne le laisse pas s'installer." },
+    { "name": "Trioxhydre / Méga-Absol ex", "tip": "Trioxhydre tape à 130 dégâts pour 3 énergies mais rejette TOUTE son énergie après chaque attaque — contre-attaque juste après, pendant qu'il ne lui reste qu'1 énergie. Attention à Méga-Absol ex qui défausse tes cartes Dresseur/Supporter : ne pose pas ton meilleur Supporter trop tôt." },
+    { "name": "Smogogo ex de la Team Rocket / Hoopa ex", "tip": "Deck Ténèbres qui écrase les decks lents (61-62% contre Méga-Braségali ex et Méga-Altaria ex/Mentali) mais s'effondre face aux archétypes rapides Combat/Plante (17% contre Méga-Lucario ex). Joue agressif et rapide plutôt que la partie longue." },
+    { "name": "Méga-Braségali ex", "tip": "Ligne Rare Candy qui frappe dès le tour 4 avec Mega Burning (120-140 dégâts). Dispute activement le tour 3 pour empêcher son évolution. Suicune ex/Glaivodo (71% de victoires) est une bonne réponse tempo/bulky." },
+    { "name": "Draco / Méga-Rayquaza ex", "tip": "Mega Burst inflige 50 dégâts par énergie mais rejette TOUTE l'énergie après chaque attaque — un tour de recharge suit chaque gros coup. Frappe pendant ce creux et élimine Draco sur le banc pour couper le recyclage d'énergie." },
+    { "name": "Magnézone / Miraidon ex", "tip": "Miraidon ex rapatrie toute l'énergie en jeu dès qu'il passe actif, alimenté en continu par Magnéton. S'il est éliminé juste après son arrivée, le deck n'a quasi aucun plan de secours — priorité absolue à son KO dès qu'il devient actif." }
+  ]
+}
