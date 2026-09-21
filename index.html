@@ -1,0 +1,1443 @@
+<!DOCTYPE html>
+<html lang="fr" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mon Coach JCC Pocket - Pro Edition v2.0</title>
+  <meta name="description" content="Dashboard tournoi JCC Pocket - Pro Edition v2.0" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          fontFamily: {
+            mono: ["ui-monospace", "SFMono-Regular", "Menlo", "monospace"],
+          },
+          keyframes: {
+            pulseGlow: {
+              "0%,100%": { opacity: "1" },
+              "50%": { opacity: "0.55" },
+            },
+          },
+          animation: {
+            pulseGlow: "pulseGlow 1.5s ease-in-out infinite",
+          },
+        },
+      },
+    };
+  </script>
+  <style>
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: rgb(24 24 27); }
+    ::-webkit-scrollbar-thumb { background: rgb(63 63 70); border-radius: 9999px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgb(82 82 91); }
+    body { -webkit-tap-highlight-color: transparent; }
+  </style>
+</head>
+<body class="min-h-screen bg-zinc-950 text-zinc-200 font-sans antialiased selection:bg-cyan-500/30">
+
+  <!-- ANTI-TILT LOCKDOWN OVERLAY -->
+  <div id="tiltLock" class="fixed inset-0 z-50 hidden items-center justify-center bg-red-950/95 backdrop-blur-sm">
+    <div class="mx-4 max-w-md rounded-2xl border border-red-500/40 bg-zinc-900/80 p-8 text-center shadow-2xl">
+      <div class="mb-3 text-5xl">🛑</div>
+      <h2 class="text-2xl font-bold text-red-400">ANTI-TILT LOCKDOWN</h2>
+      <p class="mt-2 text-sm text-zinc-400">2 défaites consécutives détectées. Prends une pause pour reset ton mental.</p>
+      <div id="tiltCountdown" class="my-6 font-mono text-6xl font-bold tabular-nums text-red-300">20:00</div>
+      <p class="text-xs text-zinc-500">Le verrou se lèvera automatiquement à 00:00.</p>
+    </div>
+  </div>
+
+  <div class="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-8">
+
+    <!-- HEADER -->
+    <header class="mb-6 flex flex-col gap-2 border-b border-zinc-800 pb-5 sm:flex-row sm:items-end sm:justify-between">
+      <div>
+        <h1 class="text-2xl font-bold tracking-tight text-white sm:text-3xl">
+          Mon Coach <span class="text-cyan-400">JCC Pocket</span>
+        </h1>
+        <p class="text-sm text-zinc-500">Pro Edition v2.0 — Coach compétitif JCC Pocket</p>
+      </div>
+      <div class="flex items-center gap-4">
+        <button onclick="openCollectionManager()" title="Gérer votre possession de cartes, extension par extension, sans passer par un deck" class="rounded-lg border border-emerald-500/40 bg-emerald-950/30 px-3 py-1.5 text-xs font-bold text-emerald-300 transition hover:bg-emerald-900/40">📚 Ma Collection</button>
+        <div id="liveClock" class="font-mono text-3xl font-bold tabular-nums text-cyan-300">--:--:--</div>
+      </div>
+    </header>
+
+    <!-- NOUVELLE VERSION DISPONIBLE (hidden by default, shown by JS si appVersion distant != APP_VERSION embarquée) -->
+    <div id="updateBanner" class="mb-4 hidden rounded-xl border border-cyan-500/40 bg-cyan-950/30 p-4 text-sm text-cyan-200"></div>
+
+    <!-- FRAÎCHEUR DU RÉFÉRENTIEL DE CARTES (hidden by default, shown by JS tant que la source n'est pas "remote") -->
+    <div id="referentielWarning" class="mb-4 hidden rounded-xl border border-amber-500/40 bg-amber-950/30 p-4 text-sm text-amber-300"></div>
+
+    <div class="grid grid-cols-1 gap-5 lg:grid-cols-3">
+
+      <!-- 1. GLOBAL PROGRESS TRACKER -->
+      <section class="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-5 lg:col-span-2">
+        <h2 class="mb-4 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-zinc-400">
+          <span class="h-2 w-2 rounded-full bg-cyan-400"></span> Progression Globale
+        </h2>
+        <div class="grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <div class="rounded-xl bg-zinc-950/60 p-4">
+            <label class="text-xs text-zinc-500">Points Actuels</label>
+            <input id="currentPoints" type="number" title="Modifiez si votre progression a déjà commencé ailleurs — devient le nouveau point de départ (0% de la barre de progression)." class="mt-1 w-full bg-transparent font-mono text-2xl font-bold text-cyan-300 outline-none focus:text-cyan-200" value="1000" />
+          </div>
+          <div class="rounded-xl bg-zinc-950/60 p-4">
+            <label class="text-xs text-zinc-500">Objectif Pts</label>
+            <input id="targetPoints" type="number" class="mt-1 w-full bg-transparent font-mono text-2xl font-bold text-white outline-none focus:text-cyan-300" value="2000" />
+          </div>
+          <div class="rounded-xl bg-zinc-950/60 p-4">
+            <label class="text-xs text-zinc-500">Rang Visé (World Top)</label>
+            <input id="targetRank" type="number" class="mt-1 w-full bg-transparent font-mono text-2xl font-bold text-white outline-none focus:text-cyan-300" value="10000" />
+          </div>
+          <div class="rounded-xl bg-zinc-950/60 p-4">
+            <div class="text-xs text-zinc-500">Winrate Global</div>
+            <div id="globalWinrate" class="mt-1 font-mono text-2xl font-bold text-emerald-400">0%</div>
+          </div>
+        </div>
+
+        <!-- progress bar -->
+        <div class="mt-4">
+          <div class="mb-1 flex justify-between text-xs text-zinc-500">
+            <span>Progression vers l'objectif</span>
+            <span id="progressLabel">0%</span>
+          </div>
+          <div class="h-2.5 w-full overflow-hidden rounded-full bg-zinc-800">
+            <div id="progressBar" class="h-full rounded-full bg-gradient-to-r from-cyan-500 to-emerald-400 transition-all duration-500" style="width:0%"></div>
+          </div>
+        </div>
+
+        <!-- recent results dots -->
+        <div class="mt-4">
+          <div class="mb-2 text-xs text-zinc-500">Résultats récents</div>
+          <div id="recentDots" class="flex flex-wrap gap-1.5"></div>
+        </div>
+      </section>
+
+      <!-- 2. TIME ENGINE & ENERGY ADVISOR -->
+      <section class="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-5">
+        <h2 class="mb-4 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-zinc-400">
+          <span class="h-2 w-2 rounded-full bg-violet-400"></span> Moteur Temps & Énergie
+        </h2>
+        <div class="rounded-xl bg-zinc-950/60 p-5 text-center">
+          <div id="bigClock" class="font-mono text-4xl font-bold tabular-nums text-white">--:--:--</div>
+          <div id="advisor" class="mt-4 rounded-lg px-3 py-3 text-sm font-semibold transition-colors">
+            Chargement...
+          </div>
+        </div>
+      </section>
+
+      <!-- 5. QUICK MATCH LOGGER -->
+      <section class="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-5">
+        <h2 class="mb-4 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-zinc-400">
+          <span class="h-2 w-2 rounded-full bg-amber-400"></span> Logger de Match
+        </h2>
+        <label class="text-xs text-zinc-500">Deck utilisé</label>
+        <select id="matchDeck" class="mb-3 mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-white outline-none focus:border-cyan-500"></select>
+        <label class="text-xs text-zinc-500">Archétype adverse</label>
+        <!-- Options construites dynamiquement par renderMetaSelector() à partir de la liste méta
+             (distante, en cache, ou de repli) — plus de liste figée dans le HTML, voir chantier
+             "méta auto-rafraîchie" dans suivi-developpement.md. -->
+        <select id="matchOpponent" class="mb-4 mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-white outline-none focus:border-cyan-500"></select>
+        <div class="grid grid-cols-2 gap-3">
+          <button onclick="logMatch('win')" class="rounded-lg bg-emerald-600 py-2.5 text-sm font-bold text-white transition hover:bg-emerald-500">VICTOIRE +150</button>
+          <button onclick="logMatch('loss')" class="rounded-lg bg-red-600 py-2.5 text-sm font-bold text-white transition hover:bg-red-500">DÉFAITE -100</button>
+        </div>
+      </section>
+
+      <!-- Per-opponent winrate breakdown -->
+      <section class="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-5">
+        <h2 class="mb-4 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-zinc-400">
+          <span class="h-2 w-2 rounded-full bg-sky-400"></span> Winrate / Adversaire
+        </h2>
+        <div class="overflow-hidden rounded-lg border border-zinc-800">
+          <table class="w-full text-sm">
+            <thead class="bg-zinc-950/60 text-xs text-zinc-500">
+              <tr><th class="px-3 py-2 text-left">Archétype</th><th class="px-3 py-2 text-right">V-D</th><th class="px-3 py-2 text-right">WR</th></tr>
+            </thead>
+            <tbody id="opponentBreakdown"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- 8. META STRATEGY REMINDERS -->
+      <section class="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-5">
+        <h2 class="mb-2 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-zinc-400">
+          <span class="h-2 w-2 rounded-full bg-pink-400"></span> Méta — Rappels Stratégiques
+        </h2>
+        <!-- Indicateur de fraîcheur : masqué quand la liste vient bien d'être récupérée en ligne,
+             affiché (avec la date de dernière synchronisation connue) quand l'appli tourne sur le
+             cache local ou, pire, sur la petite liste de repli embarquée — voir renderMetaFreshnessBadge(). -->
+        <p id="metaFreshness" class="mb-3 hidden rounded-lg border border-amber-500/40 bg-amber-950/30 px-3 py-2 text-xs text-amber-300"></p>
+        <ul id="metaTips" class="space-y-2 text-sm"></ul>
+      </section>
+
+      <!-- 3. ARSENAL MANAGEMENT -->
+      <section class="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-5 lg:col-span-3">
+        <div class="mb-4 flex items-center justify-between">
+          <h2 class="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-zinc-400">
+            <span class="h-2 w-2 rounded-full bg-cyan-400"></span> Arsenal — Gestion des Decks
+          </h2>
+          <button onclick="addDeck()" class="rounded-lg bg-cyan-600 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-cyan-500">+ Nouveau Deck</button>
+        </div>
+        <div class="overflow-x-auto rounded-lg border border-zinc-800">
+          <table class="w-full text-sm">
+            <thead class="bg-zinc-950/60 text-xs text-zinc-500">
+              <tr>
+                <th class="px-4 py-2 text-left">Deck</th>
+                <th class="px-4 py-2 text-left">Statut</th>
+                <th class="px-4 py-2 text-center">Cartes</th>
+                <th class="px-4 py-2 text-center">Matchs</th>
+                <th class="px-4 py-2 text-center">V-D</th>
+                <th class="px-4 py-2 text-center">%</th>
+                <th class="px-4 py-2 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="deckTable"></tbody>
+          </table>
+        </div>
+        <p class="mt-2 text-xs text-zinc-600">Cliquez une ligne pour inspecter les cartes du deck.</p>
+      </section>
+
+      <!-- 4. CARD INSPECTOR -->
+      <section id="inspectorSection" class="hidden rounded-2xl border border-zinc-800 bg-zinc-900/50 p-5 lg:col-span-3">
+        <div class="mb-4 flex items-center justify-between">
+          <h2 class="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-zinc-400">
+            <span class="h-2 w-2 rounded-full bg-emerald-400"></span> Inspecteur — <span id="inspectorDeckName" class="text-white"></span>
+          </h2>
+          <button onclick="openCardEditor()" class="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-emerald-500">Éditer les cartes</button>
+        </div>
+        <div id="cardGrid" class="grid grid-cols-2 gap-2 sm:grid-cols-4 md:grid-cols-5"></div>
+      </section>
+
+      <!-- 6. MATCH HISTORY -->
+      <section class="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-5 lg:col-span-3">
+        <h2 class="mb-4 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-zinc-400">
+          <span class="h-2 w-2 rounded-full bg-amber-400"></span> Journal des Matchs
+        </h2>
+        <div class="max-h-80 overflow-y-auto rounded-lg border border-zinc-800">
+          <table class="w-full text-sm">
+            <thead class="sticky top-0 bg-zinc-950 text-xs text-zinc-500">
+              <tr>
+                <th class="px-4 py-2 text-left">Heure</th>
+                <th class="px-4 py-2 text-left">Deck</th>
+                <th class="px-4 py-2 text-left">Adversaire</th>
+                <th class="px-4 py-2 text-center">Résultat</th>
+                <th class="px-4 py-2 text-right">Pts</th>
+              </tr>
+            </thead>
+            <tbody id="historyTable"></tbody>
+          </table>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- FOOTER -->
+    <footer class="mt-6 flex flex-col items-center gap-3 border-t border-zinc-800 pt-5 sm:flex-row sm:justify-between">
+      <p class="text-xs text-zinc-600">Mon Coach JCC Pocket — Pro Edition v2.0 · Sauvegarde locale automatique</p>
+      <button onclick="hardReset()" class="rounded-lg border border-red-500/40 bg-red-950/40 px-4 py-2 text-xs font-bold text-red-400 transition hover:bg-red-900/50">
+        ⚠ RESET COMPLET (vider le cache)
+      </button>
+    </footer>
+  </div>
+
+  <!-- GENERIC MODAL -->
+  <div id="modal" class="fixed inset-0 z-40 hidden items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+    <div class="w-full max-w-2xl rounded-2xl border border-zinc-700 bg-zinc-900 p-6 shadow-2xl">
+      <h3 id="modalTitle" class="text-lg font-bold text-white"></h3>
+      <div id="modalBody" class="mt-4"></div>
+      <div id="modalError" class="mt-3 hidden rounded-lg border border-red-500/40 bg-red-950/40 px-3 py-2 text-sm text-red-300"></div>
+      <div class="mt-5 flex justify-end gap-3">
+        <button onclick="closeModal()" class="rounded-lg border border-zinc-700 px-4 py-2 text-sm text-zinc-300 hover:bg-zinc-800">Annuler</button>
+        <button id="modalConfirm" class="rounded-lg bg-cyan-600 px-4 py-2 text-sm font-bold text-white hover:bg-cyan-500">Confirmer</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    "use strict";
+
+    // ---------- MÉCANISME GÉNÉRIQUE : fetch distant + cache LocalStorage + repli (timeout inclus) ----------
+    // Un seul mécanisme, réutilisé pour le méta dynamique ET pour le référentiel de cartes dynamique
+    // (demande explicite de Roadmap, 19/09/2026 : "étendre au référentiel de cartes exactement le même
+    // mécanisme que celui déjà construit et validé pour le méta"). Chaque appelant fournit sa propre
+    // clé de cache et sa propre fonction de validation de forme ; ce module ne connaît rien du contenu.
+    function fetchJsonWithTimeout(url, timeoutMs) {
+      if (!url) return Promise.resolve(null); // pas encore configuré côté appli
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), timeoutMs);
+      return fetch(url, { signal: controller.signal, cache: "no-store" })
+        .then(res => (res && res.ok) ? res.json() : null)
+        .catch(() => null)
+        .finally(() => clearTimeout(timer));
+    }
+    function loadJsonCache(cacheKey, isValid) {
+      try {
+        const raw = localStorage.getItem(cacheKey);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        if (!parsed || typeof parsed.fetchedAt !== "number" || !isValid(parsed.data)) return null;
+        return parsed; // { fetchedAt, data }
+      } catch (e) {
+        return null;
+      }
+    }
+    function saveJsonCache(cacheKey, data) {
+      try { localStorage.setItem(cacheKey, JSON.stringify({ fetchedAt: Date.now(), data: data })); } catch (e) {}
+    }
+    // Horodatage commun "JJ/MM/AAAA HH:MM", utilisé par les badges de fraîcheur (cartes ET, indirectement,
+    // méta) — volontairement pas toLocaleString(), dont le rendu dépend de la locale/du moteur JS et
+    // aurait pu diverger silencieusement entre le harnais de test Node et un vrai navigateur.
+    function formatTimestamp(ts) {
+      const d = new Date(ts);
+      const pad = n => String(n).padStart(2, "0");
+      return pad(d.getDate()) + "/" + pad(d.getMonth() + 1) + "/" + d.getFullYear() + " " + pad(d.getHours()) + ":" + pad(d.getMinutes());
+    }
+
+    // ---------- RÉFÉRENTIEL DE CARTES DYNAMIQUE ----------
+    // Jusqu'au 19/09/2026, le référentiel était chargé via deux fichiers .js séparés (<script src>),
+    // qui devaient rester physiquement à côté du HTML. Bug trouvé par Nicolas sur tablette Android :
+    // le stockage cloisonné (Android 10+) empêche le navigateur de résoudre ces fichiers voisins quand
+    // l'ouverture se fait depuis un gestionnaire de fichiers — référentiel à tort vu comme introuvable.
+    // Remplacé par le même mécanisme que le méta dynamique : fetch() HTTPS au chargement (plus de
+    // fichier voisin à résoudre par chemin relatif), cache LocalStorage, et un petit repli embarqué
+    // ci-dessous pour un tout premier lancement hors-ligne. Bénéfice supplémentaire : les nouvelles
+    // extensions/promos n'ont qu'à être ajoutées au fichier hébergé, toutes les copies déjà installées
+    // les récupèrent automatiquement, sans reconstruire ni repartager l'appli. Conséquence pratique :
+    // l'appli redevient un fichier HTML unique à partager (plus besoin des 2 fichiers .js voisins).
+    // Voir suivi-developpement.md pour le détail complet et l'historique du bug Android.
+    let CARTES_REMOTE_URL = "https://herrmann3000-coder.github.io/moncoach-jcc-pocket-meta/referentiel-cartes.json";
+    let PROMOS_REMOTE_URL = "https://herrmann3000-coder.github.io/moncoach-jcc-pocket-meta/referentiel-promos.json";
+    const CARDS_CACHE_KEY = "moncoach_jcc_pocket_v2_cards_cache";
+    const CARDS_FETCH_TIMEOUT_MS = 8000; // fichiers plus gros que le méta (~300 Ko) : marge un peu plus large
+
+    // Repli minimal embarqué : uniquement les 10 cartes du deck de démonstration (voir
+    // DEFAULT_DECKS_RAW plus bas), pour que l'appli reste utilisable (deck d'exemple affiché, pas
+    // d'erreur) même sans connexion au tout premier lancement. Pas de schemaVersion ici, contrairement
+    // au fichier méta : ces fichiers sont de simples tableaux JSON maintenus par la discussion
+    // "Collection" — la validation se fait sur la forme (voir isValidCardsArray).
+    const DEFAULT_CARTES_EMBEDDED = [
+      { id: "A1-094", extension: "A1", numero: "094", nom: "Pikachu", rarete: "◇" },
+      { id: "A1-095", extension: "A1", numero: "095", nom: "Raichu", rarete: "◇" },
+      { id: "A1-099", extension: "A1", numero: "099", nom: "Voltorbe", rarete: "◇" },
+      { id: "A1-100", extension: "A1", numero: "100", nom: "Électrode", rarete: "◇" },
+      { id: "A1-097", extension: "A1", numero: "097", nom: "Magnéti", rarete: "◇" },
+      { id: "A1-098", extension: "A1", numero: "098", nom: "Magnéton", rarete: "◇" },
+      { id: "A1-219", extension: "A1", numero: "219", nom: "Erika", rarete: "◇" },
+      { id: "A1-223", extension: "A1", numero: "223", nom: "Giovanni", rarete: "◇" },
+      { id: "A2b-111", extension: "A2b", numero: "111", nom: "Poké Ball", rarete: "couronne" },
+    ];
+    const DEFAULT_PROMOS_EMBEDDED = [
+      { id: "P-A-001", extension: "P-A", numero: "001", nom: "Potion", rarete: "◇" },
+    ];
+
+    let REF_CARTES = [];
+    let REF_PROMOS = [];
+    let ALL_CARDS = [];
+    let CARD_BY_ID = {};
+    let NAME_INDEX = {}; // nom -> [id, id, ...] (peut contenir plusieurs ids pour un même nom : réimpressions)
+    let ALL_EXTENSIONS = [];
+    const UNRESOLVED_PREFIX = "??"; // marque une carte issue de l'ancien format texte libre, non résolue vers un id
+
+    // Reconstruit tous les index dérivés à partir d'un nouveau couple (cartes, promos) — appelé au
+    // chargement (cache/repli, synchrone) puis de nouveau si le fetch distant aboutit (asynchrone).
+    function rebuildCardIndex(cartes, promos) {
+      REF_CARTES = Array.isArray(cartes) ? cartes : [];
+      REF_PROMOS = Array.isArray(promos) ? promos : [];
+      ALL_CARDS = REF_CARTES.concat(REF_PROMOS);
+      CARD_BY_ID = {};
+      ALL_CARDS.forEach(c => { if (c && c.id) CARD_BY_ID[c.id] = c; });
+      NAME_INDEX = {};
+      ALL_CARDS.forEach(c => {
+        if (!c || !c.nom) return;
+        if (!NAME_INDEX[c.nom]) NAME_INDEX[c.nom] = [];
+        NAME_INDEX[c.nom].push(c.id);
+      });
+      ALL_EXTENSIONS = [...new Set(ALL_CARDS.map(c => c.extension))].sort();
+    }
+
+    function isValidCardsArray(data) {
+      return Array.isArray(data) && data.length > 0
+        && data.every(c => c && typeof c === "object" && typeof c.id === "string" && c.id.trim() !== "" && typeof c.nom === "string" && typeof c.extension === "string");
+    }
+
+    let cardsState = { source: "default", fetchedAt: null };
+
+    // Étape 2/3 du repli en cascade, synchrone (pas de réseau) : appelée immédiatement ici (avant même
+    // l'état des decks plus bas, qui a besoin de CARD_BY_ID) pour que l'appli s'affiche sans attendre.
+    function loadCardsFromCacheOrDefault() {
+      const cached = loadJsonCache(CARDS_CACHE_KEY, d => d && isValidCardsArray(d.cartes) && isValidCardsArray(d.promos));
+      if (cached) {
+        cardsState = { source: "cache", fetchedAt: cached.fetchedAt };
+        rebuildCardIndex(cached.data.cartes, cached.data.promos);
+      } else {
+        cardsState = { source: "default", fetchedAt: null };
+        rebuildCardIndex(DEFAULT_CARTES_EMBEDDED, DEFAULT_PROMOS_EMBEDDED);
+      }
+    }
+
+    // Retourne { cartes, promos } si LES DEUX fichiers distants répondent avec un contenu valide,
+    // sinon null — comme pour le méta, jamais de mélange d'un ancien et d'un nouveau contenu partiels :
+    // soit la mise à jour complète aboutit, soit on garde ce qui est déjà affiché.
+    function fetchRemoteCards() {
+      if (!CARTES_REMOTE_URL || !PROMOS_REMOTE_URL) return Promise.resolve(null); // dépôt pas encore configuré
+      return Promise.all([
+        fetchJsonWithTimeout(CARTES_REMOTE_URL, CARDS_FETCH_TIMEOUT_MS),
+        fetchJsonWithTimeout(PROMOS_REMOTE_URL, CARDS_FETCH_TIMEOUT_MS),
+      ]).then(function (results) {
+        const cartes = results[0], promos = results[1];
+        if (!isValidCardsArray(cartes) || !isValidCardsArray(promos)) return null;
+        return { cartes: cartes, promos: promos };
+      });
+    }
+
+    // Étape 1 du repli en cascade, asynchrone et non bloquante — voir refreshMetaFromRemote() pour le
+    // même principe appliqué au méta. Renvoie sa promesse (utile pour les tests ; l'appli elle-même
+    // l'appelle "en tir et oublie").
+    function refreshCardsFromRemote() {
+      return fetchRemoteCards().then(remote => {
+        if (!remote) return; // rien de mieux à afficher : on garde le cache/repli déjà affiché
+        saveJsonCache(CARDS_CACHE_KEY, remote);
+        cardsState = { source: "remote", fetchedAt: Date.now() };
+        rebuildCardIndex(remote.cartes, remote.promos);
+        renderCardsFreshnessBanner();
+        renderAll(); // ré-affiche tout ce qui dépend des cartes (Arsenal, Inspecteur) avec l'index à jour
+      });
+    }
+
+    // Bandeau de fraîcheur du référentiel — même principe que le badge méta (renderMetaFreshnessBadge
+    // plus bas) : visible tant que l'appli ne tourne pas sur le vrai référentiel à jour, pour que
+    // Nicolas (ou un ami) sache que des cartes récentes peuvent manquer plutôt que de croire l'appli
+    // complète. Réutilise l'id "referentielWarning" (même bandeau que l'ancien avertissement "fichiers
+    // introuvables", dont le rôle est maintenant repris par ce mécanisme de fraîcheur).
+    function renderCardsFreshnessBanner() {
+      const banner = document.getElementById("referentielWarning");
+      if (!banner) return;
+      if (cardsState.source === "remote") {
+        banner.classList.add("hidden");
+        banner.textContent = "";
+        return;
+      }
+      banner.classList.remove("hidden");
+      if (cardsState.source === "cache") {
+        banner.textContent = "⚠ Référentiel de cartes hors-ligne — dernière synchronisation réussie : " + formatTimestamp(cardsState.fetchedAt) + ". Les cartes les plus récentes peuvent manquer.";
+      } else {
+        banner.textContent = "⚠ Référentiel de cartes non synchronisé (aucune connexion au premier lancement) — sélection limitée aux " + ALL_CARDS.length + " cartes de démonstration en attendant une connexion.";
+      }
+    }
+
+    // Chargement synchrone immédiat (cache ou repli embarqué) : DOIT se faire ici, avant l'état des
+    // decks plus bas (materializeDefaultDecks() a besoin de CARD_BY_ID déjà peuplé). Le fetch distant
+    // (refreshCardsFromRemote) est lancé plus tard, en arrière-plan, depuis le bloc INIT en bas du script.
+    loadCardsFromCacheOrDefault();
+    renderCardsFreshnessBanner();
+
+    // ---------- CONSTANTS ----------
+    const STORAGE_KEY = "moncoach_jcc_pocket_v2";
+    const COLLECTION_KEY = "moncoach_jcc_pocket_v2_collection";
+    // ---------- MÉTA DYNAMIQUE (archétypes adverses + rappels stratégiques) ----------
+    // Chantier "méta auto-rafraîchie" (Roadmap, 19/09/2026) : cette liste n'est plus figée en dur.
+    // Elle est récupérée à l'ouverture depuis un petit fichier JSON hébergé en ligne (GitHub Pages),
+    // mis à jour chaque semaine côté Roadmap (voir suivi-meta.md), avec repli en cascade :
+    //   1. fichier distant (fetch HTTPS, avec timeout) ;
+    //   2. si échec (hors-ligne, erreur réseau, format invalide) : dernier cache LocalStorage connu ;
+    //   3. si aucun cache non plus (tout premier lancement hors-ligne, ou dépôt pas encore configuré) :
+    //      cette petite liste de repli embarquée ci-dessous (les 4 archétypes historiques).
+    // Voir suivi-developpement.md pour le format JSON exact et les instructions de mise en place du
+    // dépôt GitHub Pages.
+    //
+    // Dépôt GitHub Pages mis en place le 19/09/2026 (herrmann3000-coder/moncoach-jcc-pocket-meta).
+    // Le fichier meta-archetypes.json qui y est publié contient pour l'instant un contenu de départ
+    // (les 4 archétypes historiques), à remplacer par Roadmap avec ses vraies propositions hebdomadaires
+    // (voir suivi-meta.md) — Développement n'a pas vocation à éditer le contenu métier de ce fichier.
+    let META_REMOTE_URL = "https://herrmann3000-coder.github.io/moncoach-jcc-pocket-meta/meta-archetypes.json";
+    const META_CACHE_KEY = "moncoach_jcc_pocket_v2_meta_cache";
+    const META_FETCH_TIMEOUT_MS = 5000;
+    // Version de format la plus récente que CETTE version de l'appli sait lire — protège contre une
+    // évolution future incompatible du fichier distant (Roadmap changerait alors ce nombre) : un
+    // fichier avec un schemaVersion différent est traité comme invalide, l'appli replie sur le cache
+    // ou le repli embarqué plutôt que de planter ou d'afficher des données mal interprétées.
+    const META_SCHEMA_VERSION = 1;
+
+    // Repli minimal embarqué, au même format que le fichier distant attendu (voir isValidMetaPayload)
+    // — les 4 archétypes historiques de l'appli, pour ne jamais laisser le Logger de Match vide.
+    const DEFAULT_META = {
+      schemaVersion: META_SCHEMA_VERSION,
+      appVersion: null,
+      appDownloadUrl: null,
+      updatedAt: null,
+      archetypes: [
+        { name: "Pikachu ex", tip: "Pression électrique rapide. Priorise un bench développé mais crains les OHKO — garde tes énergies réparties pour ne pas tout perdre sur un KO." },
+        { name: "Mewtwo ex", tip: "Matchup de ressources. Force-le à investir tôt, gère ta pioche et vise ses relais d'énergie psy pour couper son moteur." },
+        { name: "Dracaufeu ex", tip: "Gros hits mais setup lent. Applique la pression pré-évolution et course les prizes avant qu'il ne monte son attaquant principal." },
+        { name: "Staross/Tortank", tip: "Contrôle et tanking eau. Évite d'over-committer, joue autour de leur healing et vise la denrée rare : leurs énergies attachées." },
+      ],
+    };
+
+    // "Other/Unknown" n'est pas un archétype du méta : c'est une option générique toujours proposée
+    // en plus de la liste reçue (distante, en cache, ou de repli), pour pouvoir logger un match sans
+    // attendre que l'appli connaisse l'archétype en face. Jamais de rappel stratégique associé, et
+    // jamais présente dans le fichier distant lui-même (ajoutée systématiquement côté appli).
+    const OTHER_OPPONENT = "Other/Unknown";
+
+    // État du méta effectivement affiché, rempli avant le premier rendu par loadMetaFromCacheOrDefault()
+    // puis mis à jour en arrière-plan par refreshMetaFromRemote() si le fichier distant répond.
+    // appVersion/appDownloadUrl : transportés depuis le payload jusqu'ici pour la notification de
+    // nouvelle version (voir APP_VERSION/renderUpdateBanner plus bas) — présents dans le format depuis
+    // la conception initiale du méta dynamique, mais pas encore exploités avant le 19/09/2026.
+    let metaState = { archetypes: DEFAULT_META.archetypes, source: "default", updatedAt: null, fetchedAt: null, appVersion: DEFAULT_META.appVersion, appDownloadUrl: DEFAULT_META.appDownloadUrl };
+
+    function currentOpponentNames() {
+      return metaState.archetypes.map(a => a.name).concat([OTHER_OPPONENT]);
+    }
+
+    // Validation défensive du format attendu : { schemaVersion, appVersion, appDownloadUrl, updatedAt,
+    // archetypes: [{name, tip}, ...] }. Rejette tout ce qui ne correspond pas plutôt que de risquer
+    // d'afficher des données à moitié valides (ex. un JSON malformé publié par erreur côté Roadmap).
+    function isValidMetaPayload(obj) {
+      return !!obj && typeof obj === "object"
+        && obj.schemaVersion === META_SCHEMA_VERSION
+        && Array.isArray(obj.archetypes) && obj.archetypes.length > 0
+        && obj.archetypes.every(a => a && typeof a === "object" && typeof a.name === "string" && a.name.trim() !== "" && typeof a.tip === "string");
+    }
+
+    // Depuis le 19/09/2026 (chantier référentiel dynamique), ces deux fonctions sont de simples
+    // enveloppes autour du mécanisme générique partagé (loadJsonCache/saveJsonCache, tout en haut du
+    // script) — comportement inchangé, juste déduplication avec le référentiel de cartes.
+    function loadMetaCache() {
+      return loadJsonCache(META_CACHE_KEY, isValidMetaPayload);
+    }
+    function saveMetaCache(data) {
+      saveJsonCache(META_CACHE_KEY, data);
+    }
+
+    // Récupère le fichier distant. Retourne null dans tous les cas d'échec (URL pas configurée,
+    // hors-ligne, erreur réseau, timeout, statut HTTP en erreur, JSON invalide ou de format inattendu)
+    // — jamais d'exception qui remonterait jusqu'à l'appelant, pour que le repli soit toujours simple.
+    function fetchRemoteMeta() {
+      if (!META_REMOTE_URL) return Promise.resolve(null); // dépôt pas encore configuré
+      return fetchJsonWithTimeout(META_REMOTE_URL, META_FETCH_TIMEOUT_MS).then(json => isValidMetaPayload(json) ? json : null);
+    }
+
+    // Étape 2/3 du repli en cascade, synchrone (pas de réseau) : utilisée au tout premier rendu pour
+    // que l'appli s'affiche immédiatement, sans attendre la réponse du fichier distant.
+    function loadMetaFromCacheOrDefault() {
+      const cached = loadMetaCache();
+      if (cached) {
+        metaState = { archetypes: cached.data.archetypes, source: "cache", updatedAt: cached.data.updatedAt || null, fetchedAt: cached.fetchedAt, appVersion: cached.data.appVersion || null, appDownloadUrl: cached.data.appDownloadUrl || null };
+      } else {
+        metaState = { archetypes: DEFAULT_META.archetypes, source: "default", updatedAt: null, fetchedAt: null, appVersion: DEFAULT_META.appVersion, appDownloadUrl: DEFAULT_META.appDownloadUrl };
+      }
+    }
+
+    // Étape 1 du repli en cascade, asynchrone et non bloquante : lancée après le premier rendu de
+    // l'appli (déjà utilisable avec le cache/repli) ; si le fichier distant répond, met à jour le
+    // cache et ré-affiche juste les blocs qui dépendent du méta, sans retarder le chargement initial.
+    function refreshMetaFromRemote() {
+      // Retourne la promesse (inutilisé par l'appli elle-même, qui l'appelle "en tir et oublie" —
+      // utile pour les tests, qui ont besoin d'attendre sa résolution avant de vérifier le résultat).
+      return fetchRemoteMeta().then(remote => {
+        if (!remote) return; // rien de mieux à afficher : on garde ce qui est déjà à l'écran
+        saveMetaCache(remote);
+        metaState = { archetypes: remote.archetypes, source: "remote", updatedAt: remote.updatedAt || null, fetchedAt: Date.now(), appVersion: remote.appVersion || null, appDownloadUrl: remote.appDownloadUrl || null };
+        renderMetaSelector();
+        renderMeta();
+        renderUpdateBanner();
+        renderBreakdown();
+      });
+    }
+    // Un seul deck de démonstration au premier lancement (plus 4 comme avant) : l'appli étant
+    // désormais destinée à être partagée (pas seulement l'usage personnel de Nicolas), montrer 4
+    // decks personnels n'a plus de sens pour un nouvel utilisateur — un seul suffit à démontrer
+    // la gestion de deck (voir/modifier/créer/supprimer), le reste de l'Arsenal reste à sa charge.
+    // Écrit directement avec de vrais ids du référentiel (deck "Électrique" 100% réel, base A1) :
+    // contrairement aux anciens decks (texte libre hérité, non résolu dans bien des cas), ce deck
+    // s'affiche sans aucune carte "à réassigner" dès l'ouverture de l'appli.
+    const DEFAULT_DECKS_RAW = [
+      { id: 1, name: "Deck Électrique (exemple)", status: "validated", matches: 0, wins: 0, losses: 0, cards: [
+        "A1-094", "A1-094", "A1-095", "A1-095", "A1-099", "A1-099", "A1-100", "A1-100",
+        "A1-097", "A1-097", "A1-098", "A1-098", "A1-219", "A1-219", "A1-223", "A1-223",
+        "A2b-111", "A2b-111", "P-A-001", "P-A-001"
+      ] },
+    ];
+
+    // ---------- RÉSOLUTION NOM -> ID (migration, jamais de devinette sur ambiguïté) ----------
+    function resolveEntryName(entry) {
+      if (typeof entry !== "string") return "(carte invalide)";
+      if (entry.indexOf(UNRESOLVED_PREFIX) === 0) return entry.slice(UNRESOLVED_PREFIX.length);
+      const card = CARD_BY_ID[entry];
+      return card ? card.nom : "(carte introuvable dans le référentiel)";
+    }
+    function isUnresolvedEntry(entry) {
+      return typeof entry === "string" && entry.indexOf(UNRESOLVED_PREFIX) === 0;
+    }
+    // Convertit une entrée quelconque (ancien nom texte libre, id déjà valide, ou placeholder déjà
+    // migré) vers sa forme finale : un id si résolution non-ambiguë possible, sinon un placeholder
+    // "??Nom" qui sera affiché comme "à réassigner" tant que Nicolas ne l'aura pas choisi lui-même
+    // dans le nouvel éditeur de recherche.
+    function migrateCardEntry(entry) {
+      if (typeof entry !== "string" || !entry.trim()) return null;
+      const trimmed = entry.trim();
+      if (trimmed.indexOf(UNRESOLVED_PREFIX) === 0) return trimmed; // déjà un placeholder
+      if (CARD_BY_ID.hasOwnProperty(trimmed)) return trimmed; // déjà un id valide
+      const matches = NAME_INDEX[trimmed];
+      if (matches && matches.length === 1) return matches[0]; // résolution sûre, non ambiguë
+      return UNRESOLVED_PREFIX + trimmed; // 0 ou plusieurs matches -> on ne devine pas, on signale
+    }
+    function materializeDefaultDecks() {
+      return JSON.parse(JSON.stringify(DEFAULT_DECKS_RAW)).map(d => {
+        d.cards = d.cards.map(migrateCardEntry).filter(Boolean);
+        return d;
+      });
+    }
+
+    // ---------- STATE ----------
+    let state = {
+      points: 1000,
+      baselinePoints: 1000, // point de départ (0% de la barre de progression) — redéfini si l'utilisateur modifie "Points Actuels"
+      targetPoints: 2000,
+      targetRank: 10000,
+      decks: materializeDefaultDecks(),
+      history: [], // {ts, deck, opponent, result, delta}
+      tiltUntil: 0, // timestamp ms
+    };
+    let selectedDeckId = null;
+
+    // ---------- COLLECTION (possession) — clé LocalStorage séparée de l'état principal ----------
+    // Raison : le bouton "Reset complet" vide l'état principal (decks/historique/points) ; la
+    // possession de cartes ne doit pas disparaître avec un reset accidentel de la progression.
+    let collection = {}; // { "A1-001": 1|2, ... } — n'existe que pour les cartes réellement possédées
+    function sanitizeCollection(raw) {
+      const safe = {};
+      if (raw && typeof raw === "object") {
+        Object.keys(raw).forEach(id => {
+          const n = raw[id];
+          if (CARD_BY_ID.hasOwnProperty(id) && (n === 1 || n === 2)) safe[id] = n;
+        });
+      }
+      return safe;
+    }
+    function saveCollection() {
+      try { localStorage.setItem(COLLECTION_KEY, JSON.stringify(collection)); } catch (e) {}
+    }
+    function loadCollection() {
+      try {
+        const raw = localStorage.getItem(COLLECTION_KEY);
+        collection = raw ? sanitizeCollection(JSON.parse(raw)) : {};
+      } catch (e) {
+        collection = {};
+      }
+    }
+    function getOwnedCount(id) { return collection[id] || 0; }
+    function setOwnedCount(id, n) {
+      if (n <= 0) delete collection[id];
+      else collection[id] = n;
+      saveCollection();
+    }
+    function cycleOwned(id) {
+      const cur = getOwnedCount(id);
+      setOwnedCount(id, cur >= 2 ? 0 : cur + 1);
+    }
+
+    // ---------- SANITIZATION (protège contre un LocalStorage corrompu ou d'une version antérieure) ----------
+    function sanitizeState(raw) {
+      raw = raw && typeof raw === "object" ? raw : {};
+      const safe = {
+        points: (typeof raw.points === "number" && !isNaN(raw.points)) ? raw.points : 1000,
+        // Défaut à 1000 (jamais à raw.points) pour ne pas modifier silencieusement le % de progression
+        // des utilisateurs existants qui n'ont pas encore ce champ dans leur LocalStorage.
+        baselinePoints: (typeof raw.baselinePoints === "number" && !isNaN(raw.baselinePoints)) ? raw.baselinePoints : 1000,
+        targetPoints: (typeof raw.targetPoints === "number" && !isNaN(raw.targetPoints)) ? raw.targetPoints : 2000,
+        targetRank: (typeof raw.targetRank === "number" && !isNaN(raw.targetRank)) ? raw.targetRank : 10000,
+        history: Array.isArray(raw.history)
+          ? raw.history.filter(m => m && typeof m === "object" && typeof m.ts === "number" && (m.result === "win" || m.result === "loss"))
+          : [],
+        tiltUntil: (typeof raw.tiltUntil === "number" && !isNaN(raw.tiltUntil)) ? raw.tiltUntil : 0,
+        decks: [],
+      };
+
+      const rawDecks = Array.isArray(raw.decks) ? raw.decks : [];
+      safe.decks = rawDecks.map(d => {
+        if (!d || typeof d !== "object") return null;
+        let cards = [];
+        if (Array.isArray(d.cards)) {
+          if (d.cards.some(c => c && typeof c === "object")) {
+            // très ancien format {name, qty} — on l'étale en entrées individuelles
+            d.cards.forEach(c => {
+              if (c && typeof c === "object" && c.name) {
+                const q = parseInt(c.qty, 10) || 1;
+                for (let i = 0; i < q; i++) cards.push(String(c.name));
+              } else if (typeof c === "string" && c.trim()) {
+                cards.push(c);
+              }
+            });
+          } else {
+            cards = d.cards.filter(c => typeof c === "string" && c.trim());
+          }
+        }
+        // Migration id : ancien nom texte libre -> id (ou placeholder "à réassigner" si ambigu/introuvable).
+        // Idempotent : un id déjà valide ou un placeholder déjà migré ressort inchangé.
+        cards = cards.map(migrateCardEntry).filter(Boolean);
+        return {
+          id: d.id !== undefined ? d.id : Date.now() + Math.random(),
+          name: (typeof d.name === "string" && d.name.trim()) ? d.name : "Deck sans nom",
+          status: d.status === "validated" ? "validated" : "study",
+          matches: (typeof d.matches === "number" && !isNaN(d.matches)) ? d.matches : 0,
+          wins: (typeof d.wins === "number" && !isNaN(d.wins)) ? d.wins : 0,
+          losses: (typeof d.losses === "number" && !isNaN(d.losses)) ? d.losses : 0,
+          cards: cards,
+        };
+      }).filter(Boolean);
+
+      if (safe.decks.length === 0) {
+        safe.decks = materializeDefaultDecks();
+      }
+      return safe;
+    }
+
+    // ---------- PERSISTENCE ----------
+    function save() {
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) {}
+    }
+    function load() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          state = sanitizeState(JSON.parse(raw));
+        }
+      } catch (e) {
+        state = sanitizeState({});
+      }
+    }
+
+    // ---------- RENDER: PROGRESS ----------
+    function renderProgress() {
+      document.getElementById("currentPoints").value = state.points;
+      document.getElementById("targetPoints").value = state.targetPoints;
+      document.getElementById("targetRank").value = state.targetRank;
+
+      const total = state.history.length;
+      const wins = state.history.filter(m => m.result === "win").length;
+      const wr = total ? Math.round((wins / total) * 100) : 0;
+      document.getElementById("globalWinrate").textContent = wr + "%";
+
+      // progress depuis le point de départ (baselinePoints, éditable) vers l'objectif
+      const base = state.baselinePoints;
+      const span = Math.max(1, state.targetPoints - base);
+      let pct = Math.round(((state.points - base) / span) * 100);
+      pct = Math.max(0, Math.min(100, pct));
+      document.getElementById("progressBar").style.width = pct + "%";
+      document.getElementById("progressLabel").textContent = pct + "%";
+
+      // recent dots (last 12)
+      const dots = document.getElementById("recentDots");
+      dots.innerHTML = "";
+      const recent = state.history.slice(0, 12).reverse();
+      if (recent.length === 0) {
+        dots.innerHTML = '<span class="text-xs text-zinc-600">Aucun match enregistré</span>';
+      }
+      recent.forEach(m => {
+        const d = document.createElement("span");
+        d.className = "h-4 w-4 rounded-full " + (m.result === "win" ? "bg-emerald-500" : "bg-red-500");
+        d.title = m.result === "win" ? "Victoire" : "Défaite";
+        dots.appendChild(d);
+      });
+    }
+
+    // ---------- RENDER: OPPONENT BREAKDOWN ----------
+    function renderBreakdown() {
+      const tbody = document.getElementById("opponentBreakdown");
+      tbody.innerHTML = "";
+      // La table s'adapte automatiquement à la taille de la liste méta courante (Top 8-10 visé,
+      // "Other/Unknown" toujours en dernier) — plus de plafond figé à 4-5 lignes.
+      currentOpponentNames().forEach(op => {
+        const matches = state.history.filter(m => m.opponent === op);
+        const wins = matches.filter(m => m.result === "win").length;
+        const losses = matches.length - wins;
+        const wr = matches.length ? Math.round((wins / matches.length) * 100) : 0;
+        const tr = document.createElement("tr");
+        tr.className = "border-t border-zinc-800";
+        tr.innerHTML =
+          '<td class="px-3 py-2 text-zinc-300">' + escapeHtml(op) + '</td>' +
+          '<td class="px-3 py-2 text-right font-mono text-zinc-400">' + wins + '-' + losses + '</td>' +
+          '<td class="px-3 py-2 text-right font-mono ' + (wr >= 50 ? "text-emerald-400" : "text-red-400") + '">' + (matches.length ? wr + "%" : "—") + '</td>';
+        tbody.appendChild(tr);
+      });
+    }
+
+    // ---------- RENDER: MATCH OPPONENT SELECTOR (méta dynamique) ----------
+    function renderMetaSelector() {
+      const sel = document.getElementById("matchOpponent");
+      if (!sel) return;
+      const prev = sel.value;
+      const names = currentOpponentNames();
+      sel.innerHTML = "";
+      names.forEach(name => {
+        const o = document.createElement("option");
+        o.value = name; o.textContent = name;
+        sel.appendChild(o);
+      });
+      if (prev && names.indexOf(prev) !== -1) sel.value = prev;
+    }
+
+    // ---------- RENDER: META TIPS ----------
+    function renderMeta() {
+      const ul = document.getElementById("metaTips");
+      ul.innerHTML = "";
+      // S'adapte au nombre d'archétypes reçus (cible Top 8-10) — "Other/Unknown" n'a pas de rappel
+      // stratégique, il n'apparaît donc que dans le sélecteur et le tableau winrate, pas ici.
+      metaState.archetypes.forEach(a => {
+        const li = document.createElement("li");
+        li.className = "rounded-lg bg-zinc-950/60 p-3";
+        li.innerHTML = '<span class="font-semibold text-pink-300">' + escapeHtml(a.name) + '</span><p class="mt-0.5 text-xs text-zinc-400">' + escapeHtml(a.tip) + '</p>';
+        ul.appendChild(li);
+      });
+      renderMetaFreshnessBadge();
+    }
+
+    // Convertit une date "AAAA-MM-JJ" (format attendu du champ updatedAt, voir suivi-developpement.md)
+    // en affichage français JJ/MM/AAAA ; retombe sur la valeur brute si le format est inattendu.
+    function formatMetaDate(isoDate) {
+      const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(isoDate));
+      return m ? (m[3] + "/" + m[2] + "/" + m[1]) : String(isoDate);
+    }
+
+    // Indicateur visuel demandé par Roadmap : montre clairement quand l'appli ne tourne PAS sur la
+    // dernière liste méta connue en ligne, pour que Nicolas (ou un ami) ne prenne pas un vieux méta
+    // pour le plus récent sans le savoir.
+    function renderMetaFreshnessBadge() {
+      const badge = document.getElementById("metaFreshness");
+      if (!badge) return;
+      if (metaState.source === "remote") {
+        badge.classList.add("hidden");
+        badge.textContent = "";
+        return;
+      }
+      badge.classList.remove("hidden");
+      if (metaState.source === "cache") {
+        const dateLabel = metaState.updatedAt ? formatMetaDate(metaState.updatedAt) : null;
+        badge.textContent = "⚠ Liste méta hors-ligne" + (dateLabel ? (" — dernière mise à jour connue : " + dateLabel) : " — dernière mise à jour connue non datée") + ".";
+      } else {
+        badge.textContent = "⚠ Liste méta par défaut (hors-ligne, jamais synchronisée avec la liste en ligne).";
+      }
+    }
+
+    // ---------- NOTIFICATION DE NOUVELLE VERSION DISPONIBLE ----------
+    // Champs appVersion/appDownloadUrl prévus dans le format du fichier méta distant dès sa conception
+    // initiale, mais jamais exploités avant cette demande de Roadmap (19/09/2026). Fonctionnement :
+    // comparer la version embarquée dans CE fichier HTML (APP_VERSION) à celle reçue du fichier distant
+    // (metaState.appVersion, transportée par le méta dynamique) ; si différente, bandeau avec lien de
+    // téléchargement. Pas de mise à jour de code automatique possible (page file:// : aucun accès en
+    // écriture/suppression sur le système de fichiers, quelle que soit la plateforme) — seulement un
+    // lien cliqué manuellement (fonctionne aussi bien vers un zip GitHub que vers un lien de partage
+    // Google Drive classique, voir roadmap-fonctionnalites.md) + une suggestion textuelle de nettoyage
+    // manuel de l'ancien dossier, puisque la suppression automatique est elle aussi impossible.
+    const APP_VERSION = "2.0.0"; // à incrémenter par Développement à chaque nouvelle version partagée
+
+    function renderUpdateBanner() {
+      const banner = document.getElementById("updateBanner");
+      if (!banner) return;
+      const remoteVersion = metaState.appVersion;
+      const downloadUrl = metaState.appDownloadUrl;
+      if (!remoteVersion || !downloadUrl || remoteVersion === APP_VERSION) {
+        banner.classList.add("hidden");
+        banner.innerHTML = "";
+        return;
+      }
+      banner.classList.remove("hidden");
+      banner.innerHTML = "🚀 Nouvelle version disponible (" + escapeHtml(remoteVersion) + ", vous avez la " + escapeHtml(APP_VERSION) + ") — " +
+        '<a href="' + escapeAttr(downloadUrl) + '" target="_blank" rel="noopener" class="font-semibold text-cyan-300 underline">télécharger la mise à jour</a>' +
+        ". Après extraction, vous pouvez supprimer l'ancien dossier.";
+    }
+
+    // ---------- RENDER: DECKS ----------
+    function renderDecks() {
+      const tbody = document.getElementById("deckTable");
+      tbody.innerHTML = "";
+      state.decks.forEach(deck => {
+        const deckWr = deck.matches ? Math.round((deck.wins / deck.matches) * 100) : 0;
+        const statusBadge = deck.status === "validated"
+          ? '<span class="rounded bg-emerald-900/40 px-2 py-0.5 text-[10px] font-bold uppercase text-emerald-300">Validé 100%</span>'
+          : '<span class="rounded bg-amber-900/40 px-2 py-0.5 text-[10px] font-bold uppercase text-amber-300">En étude</span>';
+        const tr = document.createElement("tr");
+        tr.className = "cursor-pointer border-t border-zinc-800 transition hover:bg-zinc-800/40 " + (deck.id === selectedDeckId ? "bg-cyan-950/30" : "");
+        tr.onclick = () => selectDeck(deck.id);
+        tr.innerHTML =
+          '<td class="px-4 py-3 font-medium text-white">' + escapeHtml(deck.name) + '</td>' +
+          '<td class="px-4 py-3">' + statusBadge + '</td>' +
+          '<td class="px-4 py-3 text-center font-mono ' + (deck.cards.length === 20 ? "text-emerald-400" : "text-zinc-500") + '">' + deck.cards.length + '/20</td>' +
+          '<td class="px-4 py-3 text-center font-mono text-zinc-400">' + (deck.matches || 0) + '</td>' +
+          '<td class="px-4 py-3 text-center font-mono text-zinc-400">' + (deck.wins || 0) + '-' + (deck.losses || 0) + '</td>' +
+          '<td class="px-4 py-3 text-center font-mono ' + (deckWr >= 50 ? "text-emerald-400" : "text-red-400") + '">' + (deck.matches ? deckWr + "%" : "—") + '</td>' +
+          '<td class="px-4 py-3 text-right">' +
+            '<button onclick="event.stopPropagation();renameDeck(' + deck.id + ')" class="mr-2 rounded bg-zinc-800 px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-700">Modifier</button>' +
+            '<button onclick="event.stopPropagation();deleteDeck(' + deck.id + ')" class="rounded bg-red-900/50 px-2 py-1 text-xs text-red-300 hover:bg-red-800/50">Suppr.</button>' +
+          '</td>';
+        tbody.appendChild(tr);
+      });
+
+      // match logger deck select
+      const sel = document.getElementById("matchDeck");
+      const prev = sel.value;
+      sel.innerHTML = "";
+      state.decks.forEach(d => {
+        const o = document.createElement("option");
+        o.value = d.id; o.textContent = d.name;
+        sel.appendChild(o);
+      });
+      if (prev) sel.value = prev;
+    }
+
+    // ---------- RENDER: CARD INSPECTOR ----------
+    function selectDeck(id) {
+      selectedDeckId = id;
+      renderDecks();
+      const deck = state.decks.find(d => d.id === id);
+      if (!deck) return;
+      document.getElementById("inspectorSection").classList.remove("hidden");
+      document.getElementById("inspectorDeckName").textContent = deck.name;
+      const grid = document.getElementById("cardGrid");
+      grid.innerHTML = "";
+      if (deck.cards.length === 0) {
+        grid.innerHTML = '<p class="col-span-full text-sm text-zinc-600">Aucune carte. Cliquez « Éditer les cartes » pour en ajouter (exactement 20).</p>';
+      }
+      deck.cards.forEach(entry => {
+        const div = document.createElement("div");
+        if (isUnresolvedEntry(entry)) {
+          div.className = "rounded-lg border border-dashed border-amber-500/60 bg-amber-950/20 p-3 text-center text-xs text-amber-300";
+          div.innerHTML = '⚠ ' + escapeHtml(resolveEntryName(entry)) + '<div class="mt-0.5 text-[10px] text-amber-400/80">à réassigner</div>';
+        } else {
+          const card = CARD_BY_ID[entry];
+          const name = card ? card.nom : "(carte introuvable)";
+          const owned = card ? getOwnedCount(card.id) : 0;
+          div.className = "rounded-lg border border-zinc-800 bg-zinc-950/60 p-3 text-center text-xs text-zinc-300";
+          let html = escapeHtml(name);
+          if (card) html += '<div class="mt-0.5 text-[10px] text-zinc-600">' + escapeHtml(card.extension) + '-' + escapeHtml(card.numero) + '</div>';
+          if (card && owned === 0) html += '<div class="mt-1 inline-block rounded bg-red-900/40 px-1.5 py-0.5 text-[9px] font-semibold uppercase text-red-300">non possédée</div>';
+          div.innerHTML = html;
+        }
+        grid.appendChild(div);
+      });
+    }
+
+    // ---------- RENDER: HISTORY ----------
+    function renderHistory() {
+      const tbody = document.getElementById("historyTable");
+      tbody.innerHTML = "";
+      if (state.history.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="px-4 py-6 text-center text-sm text-zinc-600">Aucun match dans le journal.</td></tr>';
+        return;
+      }
+      state.history.forEach(m => {
+        const tr = document.createElement("tr");
+        tr.className = "border-t border-zinc-800";
+        const time = new Date(m.ts).toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+        tr.innerHTML =
+          '<td class="px-4 py-2 text-zinc-500">' + time + '</td>' +
+          '<td class="px-4 py-2 text-zinc-300">' + escapeHtml(m.deck) + '</td>' +
+          '<td class="px-4 py-2 text-zinc-400">' + escapeHtml(m.opponent) + '</td>' +
+          '<td class="px-4 py-2 text-center"><span class="' + (m.result === "win" ? "text-emerald-400" : "text-red-400") + ' font-semibold">' + (m.result === "win" ? "Victoire" : "Défaite") + '</span></td>' +
+          '<td class="px-4 py-2 text-right font-mono ' + (m.delta > 0 ? "text-emerald-400" : "text-red-400") + '">' + (m.delta > 0 ? "+" : "") + m.delta + '</td>';
+        tbody.appendChild(tr);
+      });
+    }
+
+    function renderAll() {
+      renderProgress();
+      renderBreakdown();
+      renderDecks();
+      renderHistory();
+      if (selectedDeckId) selectDeck(selectedDeckId);
+    }
+
+    // ---------- MATCH LOGGING ----------
+    function logMatch(result) {
+      if (Date.now() < state.tiltUntil) return; // locked
+      const deckId = parseInt(document.getElementById("matchDeck").value, 10);
+      const deck = state.decks.find(d => d.id === deckId);
+      const opponent = document.getElementById("matchOpponent").value;
+      const delta = result === "win" ? 150 : -100;
+      state.points += delta;
+      if (deck) {
+        deck.matches = (deck.matches || 0) + 1;
+        if (result === "win") deck.wins = (deck.wins || 0) + 1;
+        else deck.losses = (deck.losses || 0) + 1;
+      }
+      state.history.unshift({
+        ts: Date.now(),
+        deck: deck ? deck.name : "—",
+        opponent: opponent,
+        result: result,
+        delta: delta,
+      });
+      // anti-tilt: 2 consecutive losses
+      const last2 = state.history.slice(0, 2);
+      if (last2.length === 2 && last2.every(m => m.result === "loss")) {
+        state.tiltUntil = Date.now() + 20 * 60 * 1000;
+      }
+      save();
+      renderAll();
+      checkTilt();
+    }
+
+    // ---------- ANTI-TILT ----------
+    function checkTilt() {
+      const lock = document.getElementById("tiltLock");
+      const remaining = state.tiltUntil - Date.now();
+      if (remaining > 0) {
+        lock.classList.remove("hidden");
+        lock.classList.add("flex");
+        const mm = String(Math.floor(remaining / 60000)).padStart(2, "0");
+        const ss = String(Math.floor((remaining % 60000) / 1000)).padStart(2, "0");
+        document.getElementById("tiltCountdown").textContent = mm + ":" + ss;
+      } else {
+        if (state.tiltUntil !== 0) { state.tiltUntil = 0; save(); }
+        lock.classList.add("hidden");
+        lock.classList.remove("flex");
+      }
+    }
+
+    // ---------- CLOCK & ADVISOR ----------
+    function updateClock() {
+      const now = new Date();
+      const t = now.toLocaleTimeString("fr-FR", { hour12: false });
+      document.getElementById("liveClock").textContent = t;
+      document.getElementById("bigClock").textContent = t;
+
+      const h = now.getHours();
+      let msg, cls;
+      if (h >= 8 && h < 10) {
+        msg = "Session Café — Optimal"; cls = "bg-emerald-950/60 text-emerald-300";
+      } else if (h >= 12 && h < 14) {
+        msg = "Session Midi — Optimal"; cls = "bg-emerald-950/60 text-emerald-300";
+      } else if (h >= 23 || h < 5) {
+        msg = "Session Tardive — Attention fatigue"; cls = "bg-red-950/60 text-red-300";
+      } else {
+        msg = "Session Neutre — Focus standard"; cls = "bg-zinc-800/60 text-zinc-300";
+      }
+      const adv = document.getElementById("advisor");
+      adv.textContent = msg;
+      adv.className = "mt-4 rounded-lg px-3 py-3 text-sm font-semibold transition-colors " + cls;
+
+      checkTilt();
+    }
+
+    // ---------- DECK ACTIONS ----------
+    function addDeck() {
+      const id = Date.now();
+      state.decks.push({ id: id, name: "Nouveau Deck", status: "study", matches: 0, wins: 0, losses: 0, cards: [] });
+      save(); renderDecks();
+      renameDeck(id);
+    }
+
+    function renameDeck(id) {
+      const deck = state.decks.find(d => d.id === id);
+      if (!deck) return;
+      openModal("Modifier le deck",
+        '<div class="space-y-3">' +
+          '<div>' +
+            '<label class="text-xs text-zinc-500">Nom</label>' +
+            '<input id="renameInput" class="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-white outline-none focus:border-cyan-500" value="' + escapeAttr(deck.name) + '" />' +
+          '</div>' +
+          '<div>' +
+            '<label class="text-xs text-zinc-500">Statut</label>' +
+            '<select id="statusInput" class="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-white outline-none focus:border-cyan-500">' +
+              '<option value="validated"' + (deck.status === "validated" ? " selected" : "") + '>Validé 100%</option>' +
+              '<option value="study"' + (deck.status !== "validated" ? " selected" : "") + '>En étude</option>' +
+            '</select>' +
+          '</div>' +
+        '</div>',
+        () => {
+          const v = document.getElementById("renameInput").value.trim();
+          if (!v) { showModalError("Le nom ne peut pas être vide."); return false; }
+          deck.name = v;
+          deck.status = document.getElementById("statusInput").value === "validated" ? "validated" : "study";
+          save(); renderAll();
+          return true;
+        });
+      setTimeout(() => document.getElementById("renameInput").focus(), 50);
+    }
+
+    function deleteDeck(id) {
+      const deck = state.decks.find(d => d.id === id);
+      if (!deck) return;
+      openModal("Supprimer le deck",
+        '<p class="text-sm text-zinc-400">Confirmer la suppression de « <span class="text-white">' + escapeHtml(deck.name) + '</span> » ? Cette action est irréversible.</p>',
+        () => {
+          state.decks = state.decks.filter(d => d.id !== id);
+          if (selectedDeckId === id) {
+            selectedDeckId = null;
+            document.getElementById("inspectorSection").classList.add("hidden");
+          }
+          save(); renderAll();
+          return true;
+        });
+    }
+
+    // ---------- CARD EDITOR (recherche/filtre parmi le référentiel) ----------
+    let cardEditorDraft = null; // { deckId, cards: [id|"??nom", ...] }
+
+    function groupDraftCards(cards) {
+      const order = [];
+      const map = {};
+      cards.forEach(entry => {
+        const name = resolveEntryName(entry);
+        if (!map[name]) { map[name] = { name: name, entries: [], unresolved: isUnresolvedEntry(entry) }; order.push(name); }
+        map[name].entries.push(entry);
+      });
+      return order.map(k => map[k]).sort((a, b) => a.name.localeCompare(b.name));
+    }
+
+    function openCardEditor() {
+      const deck = state.decks.find(d => d.id === selectedDeckId);
+      if (!deck) return;
+      cardEditorDraft = { deckId: deck.id, cards: deck.cards.slice() };
+
+      const extOptions = '<option value="">Toutes extensions</option>' +
+        ALL_EXTENSIONS.map(ext => '<option value="' + escapeAttr(ext) + '">' + escapeHtml(ext.indexOf("P-") === 0 ? ext + " (promos)" : ext) + '</option>').join("");
+
+      openModal("Éditer les cartes — " + deck.name,
+        '<div class="space-y-3">' +
+          '<div id="cardEditorWarning" class="hidden rounded-lg border border-amber-500/40 bg-amber-950/30 px-3 py-2 text-xs text-amber-300"></div>' +
+          '<div class="grid grid-cols-1 gap-2 sm:grid-cols-3">' +
+            '<input id="ceSearch" type="text" placeholder="Rechercher une carte par nom..." class="rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-white outline-none focus:border-emerald-500 sm:col-span-2" />' +
+            '<select id="ceExtension" class="rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-white outline-none focus:border-emerald-500">' + extOptions + '</select>' +
+          '</div>' +
+          '<label class="flex items-center gap-2 text-xs text-zinc-400">' +
+            '<input id="ceOwnedOnly" type="checkbox" class="rounded border-zinc-700 bg-zinc-950 text-emerald-500" />' +
+            'Cartes possédées uniquement' +
+          '</label>' +
+          '<div>' +
+            '<div class="mb-1 text-xs text-zinc-500">Résultats — cliquez « + » pour ajouter au deck</div>' +
+            '<div id="ceResults" class="max-h-44 overflow-y-auto rounded-lg border border-zinc-800 divide-y divide-zinc-800"></div>' +
+          '</div>' +
+          '<div>' +
+            '<div class="mb-1 flex items-center justify-between text-xs text-zinc-500">' +
+              "<span>Deck en cours d'édition</span>" +
+              '<span id="ceCount" class="font-mono"></span>' +
+            '</div>' +
+            '<div id="ceSelected" class="max-h-48 overflow-y-auto rounded-lg border border-zinc-800 divide-y divide-zinc-800"></div>' +
+          '</div>' +
+        '</div>',
+        () => {
+          const total = cardEditorDraft.cards.length;
+          if (total !== 20) {
+            showModalError("Règle A échouée : le deck doit contenir EXACTEMENT 20 cartes (actuellement " + total + ").");
+            return false;
+          }
+          const groups = groupDraftCards(cardEditorDraft.cards);
+          const offenders = groups.filter(g => g.entries.length > 2);
+          if (offenders.length > 0) {
+            showModalError("Règle B échouée : max 2 exemplaires par carte, toutes extensions confondues. En excès : " + offenders.map(g => '"' + g.name + '" (' + g.entries.length + '×)').join(", ") + ".");
+            return false;
+          }
+          const unresolved = groups.filter(g => g.unresolved);
+          if (unresolved.length > 0) {
+            showModalError("Cartes à réassigner avant de sauvegarder (ancien format non résolu) : " + unresolved.map(g => g.name).join(", ") + ". Recherchez-les et remplacez-les par la vraie carte.");
+            return false;
+          }
+          deck.cards = cardEditorDraft.cards.slice();
+          cardEditorDraft = null;
+          save(); renderAll();
+          return true;
+        });
+
+      if (ALL_CARDS.length === 0) {
+        const w = document.getElementById("cardEditorWarning");
+        w.textContent = "⚠ Référentiel de cartes vide (0 carte chargée) — cas normalement impossible depuis le passage au chargement dynamique. Vérifiez votre connexion et rouvrez l'appli.";
+        w.classList.remove("hidden");
+      }
+
+      document.getElementById("ceSearch").addEventListener("input", renderCEResults);
+      document.getElementById("ceExtension").addEventListener("change", renderCEResults);
+      document.getElementById("ceOwnedOnly").addEventListener("change", renderCEResults);
+      // Réinitialise la pagination des résultats à chaque ouverture de l'éditeur (nouvelle session de recherche).
+      ceVisibleCount = 50;
+      ceLastFilterKey = null;
+      renderCEResults();
+      renderCESelected();
+    }
+
+    // ---------- GESTION DE LA COLLECTION (indépendante du deckbuilding) ----------
+    // Demandé par Roadmap suite au test réel de Nicolas : cocher la possession de ses cartes
+    // extension par extension ne devrait pas obliger à ouvrir un deck puis "Éditer les cartes".
+    // Réutilise tel quel le composant recherche/filtre/toggle 0-1-2 déjà construit pour le
+    // deckbuilding (renderCEResults) — seule différence : cardEditorDraft reste à null, ce qui fait
+    // disparaître le bouton "+" (ajouter au deck) et le panneau "Deck en cours d'édition", puisqu'il
+    // n'y a ici aucun deck concerné.
+    function openCollectionManager() {
+      cardEditorDraft = null; // pas de deck : mode collection pure
+
+      const extOptions = '<option value="">Toutes extensions</option>' +
+        ALL_EXTENSIONS.map(ext => '<option value="' + escapeAttr(ext) + '">' + escapeHtml(ext.indexOf("P-") === 0 ? ext + " (promos)" : ext) + '</option>').join("");
+
+      openModal("Ma Collection",
+        '<div class="space-y-3">' +
+          '<div id="cardEditorWarning" class="hidden rounded-lg border border-amber-500/40 bg-amber-950/30 px-3 py-2 text-xs text-amber-300"></div>' +
+          '<p class="text-xs text-zinc-500">Parcourez vos cartes par nom ou par extension et mettez à jour votre possession, indépendamment de vos decks.</p>' +
+          '<div class="grid grid-cols-1 gap-2 sm:grid-cols-3">' +
+            '<input id="ceSearch" type="text" placeholder="Rechercher une carte par nom..." class="rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-white outline-none focus:border-emerald-500 sm:col-span-2" />' +
+            '<select id="ceExtension" class="rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-white outline-none focus:border-emerald-500">' + extOptions + '</select>' +
+          '</div>' +
+          '<label class="flex items-center gap-2 text-xs text-zinc-400">' +
+            '<input id="ceOwnedOnly" type="checkbox" class="rounded border-zinc-700 bg-zinc-950 text-emerald-500" />' +
+            'Cartes possédées uniquement' +
+          '</label>' +
+          '<div>' +
+            '<div class="mb-1 text-xs text-zinc-500">Résultats — cliquez le badge pour faire passer la possession à 0 / 1 / 2</div>' +
+            '<div id="ceResults" class="max-h-72 overflow-y-auto rounded-lg border border-zinc-800 divide-y divide-zinc-800"></div>' +
+          '</div>' +
+        '</div>',
+        () => true // rien à valider ici (pas de deck) : "Confirmer" ferme simplement la fenêtre, comme "Annuler"
+      );
+
+      if (ALL_CARDS.length === 0) {
+        const w = document.getElementById("cardEditorWarning");
+        w.textContent = "⚠ Référentiel de cartes vide (0 carte chargée) — cas normalement impossible depuis le passage au chargement dynamique. Vérifiez votre connexion et rouvrez l'appli.";
+        w.classList.remove("hidden");
+      }
+
+      document.getElementById("ceSearch").addEventListener("input", renderCEResults);
+      document.getElementById("ceExtension").addEventListener("change", renderCEResults);
+      document.getElementById("ceOwnedOnly").addEventListener("change", renderCEResults);
+      // Réinitialise la pagination des résultats à chaque ouverture (nouvelle session de recherche).
+      ceVisibleCount = 50;
+      ceLastFilterKey = null;
+      renderCEResults();
+    }
+
+    // ---------- PAGINATION DES RÉSULTATS DE L'ÉDITEUR DE CARTES ----------
+    // Le plafond de 50 sert à éviter de dumper les ~3879 cartes d'un coup ; mais une coupure sèche
+    // et invisible rendait certaines cartes inaccessibles dès qu'un filtre (ex. une extension à plus
+    // de 50 cartes, jusqu'à 379 pour A4b) avait plus de 50 résultats. Remplacé par un chargement par
+    // lots de 50 via "Afficher plus", qui couvre aussi bien le cas extension seule que texte + extension.
+    let ceVisibleCount = 50;
+    let ceLastFilterKey = null;
+    function ceShowMore() {
+      ceVisibleCount += 50;
+      renderCEResults();
+    }
+
+    function renderCEResults() {
+      const searchEl = document.getElementById("ceSearch");
+      const extEl = document.getElementById("ceExtension");
+      const ownedEl = document.getElementById("ceOwnedOnly");
+      if (!searchEl) return;
+      const q = searchEl.value.trim().toLowerCase();
+      const ext = extEl.value;
+      const ownedOnly = ownedEl.checked;
+      const results = document.getElementById("ceResults");
+
+      if (!q && !ext && !ownedOnly) {
+        results.innerHTML = '<p class="p-3 text-xs text-zinc-600">Tapez un nom, ou choisissez une extension, pour afficher des cartes (' + ALL_CARDS.length + ' au total).</p>';
+        return;
+      }
+
+      // La pagination repart de 50 dès que le filtre change (nouvelle recherche) ; elle ne repart PAS
+      // quand renderCEResults() est ré-appelé depuis ceShowMore() avec le même filtre.
+      const filterKey = q + "|" + ext + "|" + ownedOnly;
+      if (filterKey !== ceLastFilterKey) {
+        ceLastFilterKey = filterKey;
+        ceVisibleCount = 50;
+      }
+
+      const allMatches = ALL_CARDS.filter(c => {
+        if (q && c.nom.toLowerCase().indexOf(q) === -1) return false;
+        if (ext && c.extension !== ext) return false;
+        if (ownedOnly && getOwnedCount(c.id) === 0) return false;
+        return true;
+      });
+      const truncated = allMatches.length > ceVisibleCount;
+      const remaining = allMatches.length - ceVisibleCount;
+      const matches = allMatches.slice(0, ceVisibleCount);
+
+      if (matches.length === 0) {
+        results.innerHTML = '<p class="p-3 text-xs text-zinc-600">Aucune carte ne correspond.</p>';
+        return;
+      }
+
+      results.innerHTML = matches.map(c => {
+        const owned = getOwnedCount(c.id);
+        const ownedLabel = owned === 0 ? "Non poss." : (owned === 1 ? "×1" : "×2+");
+        const ownedCls = owned === 0 ? "bg-zinc-800 text-zinc-400" : "bg-emerald-900/50 text-emerald-300";
+        const rarete = c.rarete || "—";
+        // Le bouton "+" (ajout au deck en cours d'édition) n'a de sens qu'en mode deckbuilding
+        // (cardEditorDraft renseigné) ; en mode "Ma Collection" (pas de deck), il est simplement absent.
+        const addBtn = cardEditorDraft
+          ? '<button type="button" onclick="' + "addCardToDraft('" + jsAttrEscape(c.id) + "')" + '" class="rounded bg-emerald-600 px-2 py-1 text-[10px] font-bold text-white hover:bg-emerald-500">+</button>'
+          : "";
+        return '<div class="flex items-center justify-between gap-2 px-3 py-2 text-xs">' +
+          '<div class="min-w-0 flex-1">' +
+            '<div class="truncate text-zinc-200">' + escapeHtml(c.nom) + '</div>' +
+            '<div class="text-[10px] text-zinc-600">' + escapeHtml(c.extension) + '-' + escapeHtml(c.numero) + ' · ' + escapeHtml(rarete) + '</div>' +
+          '</div>' +
+          '<button type="button" onclick="' + "cycleOwned('" + jsAttrEscape(c.id) + "');renderCEResults();renderCESelected();" + '" class="rounded px-2 py-1 text-[10px] font-semibold ' + ownedCls + '">' + ownedLabel + '</button>' +
+          addBtn +
+        '</div>';
+      }).join("") + (truncated
+        ? '<button type="button" onclick="ceShowMore()" class="w-full p-2 text-center text-[10px] font-semibold text-emerald-400 hover:text-emerald-300">Afficher plus (' + remaining + ' restante' + (remaining > 1 ? "s" : "") + ')</button>'
+        : "");
+    }
+
+    function renderCESelected() {
+      const el = document.getElementById("ceSelected");
+      const countEl = document.getElementById("ceCount");
+      if (!el || !cardEditorDraft) return;
+      const total = cardEditorDraft.cards.length;
+      countEl.textContent = total + "/20";
+      countEl.className = "font-mono " + (total === 20 ? "text-emerald-400" : "text-zinc-400");
+
+      const groups = groupDraftCards(cardEditorDraft.cards);
+      if (groups.length === 0) {
+        el.innerHTML = '<p class="p-3 text-xs text-zinc-600">Aucune carte sélectionnée.</p>';
+        return;
+      }
+      el.innerHTML = groups.map(g => {
+        const qtyCls = g.entries.length > 2 ? "text-red-400" : "text-zinc-300";
+        const unresolvedTag = g.unresolved ? '<span class="ml-1 rounded bg-amber-900/40 px-1.5 py-0.5 text-[9px] font-semibold uppercase text-amber-300">à réassigner</span>' : "";
+        return '<div class="flex items-center justify-between gap-2 px-3 py-2 text-xs">' +
+          '<div class="min-w-0 flex-1 truncate ' + qtyCls + '">' + escapeHtml(g.name) + unresolvedTag + '</div>' +
+          '<div class="font-mono text-zinc-500">×' + g.entries.length + '</div>' +
+          '<button type="button" onclick="' + "removeCardFromDraft('" + jsAttrEscape(g.name) + "')" + '" class="rounded bg-red-900/50 px-2 py-1 text-[10px] font-bold text-red-300 hover:bg-red-800/50">Retirer</button>' +
+        '</div>';
+      }).join("");
+    }
+
+    function addCardToDraft(id) {
+      if (!cardEditorDraft) return;
+      const card = CARD_BY_ID[id];
+      if (!card) return;
+      const w = document.getElementById("cardEditorWarning");
+      if (cardEditorDraft.cards.length >= 20) {
+        w.textContent = "Le deck est déjà à 20 cartes. Retirez-en une avant d'en ajouter une autre.";
+        w.classList.remove("hidden");
+        return;
+      }
+      const currentCount = cardEditorDraft.cards.filter(e => resolveEntryName(e) === card.nom).length;
+      if (currentCount >= 2) {
+        w.textContent = 'Déjà 2 exemplaires de "' + card.nom + '" dans ce deck (toutes extensions confondues) — règle stricte du jeu.';
+        w.classList.remove("hidden");
+        return;
+      }
+      w.classList.add("hidden");
+      cardEditorDraft.cards.push(id);
+      renderCESelected();
+    }
+
+    function removeCardFromDraft(name) {
+      if (!cardEditorDraft) return;
+      const idx = cardEditorDraft.cards.findIndex(e => resolveEntryName(e) === name);
+      if (idx !== -1) cardEditorDraft.cards.splice(idx, 1);
+      const w = document.getElementById("cardEditorWarning");
+      if (w) w.classList.add("hidden");
+      renderCESelected();
+    }
+
+    // ---------- HARD RESET ----------
+    function hardReset() {
+      openModal("Reset complet",
+        "<p class=\"text-sm text-zinc-400\">Vider TOUT le cache (points, objectifs, decks, historique) et restaurer les decks par défaut ? La collection de cartes possédées n'est PAS affectée par ce reset. Action irréversible.</p>",
+        () => {
+          localStorage.removeItem(STORAGE_KEY);
+          state = {
+            points: 1000, baselinePoints: 1000, targetPoints: 2000, targetRank: 10000,
+            decks: materializeDefaultDecks(),
+            history: [], tiltUntil: 0,
+          };
+          selectedDeckId = null;
+          document.getElementById("inspectorSection").classList.add("hidden");
+          save(); renderAll(); checkTilt();
+          return true;
+        });
+    }
+
+    // ---------- MODAL ENGINE ----------
+    let modalCallback = null;
+    function openModal(title, bodyHtml, onConfirm) {
+      document.getElementById("modalTitle").textContent = title;
+      document.getElementById("modalBody").innerHTML = bodyHtml;
+      hideModalError();
+      modalCallback = onConfirm;
+      const m = document.getElementById("modal");
+      m.classList.remove("hidden");
+      m.classList.add("flex");
+    }
+    function closeModal() {
+      const m = document.getElementById("modal");
+      m.classList.add("hidden");
+      m.classList.remove("flex");
+      modalCallback = null;
+      cardEditorDraft = null;
+    }
+    function showModalError(msg) {
+      const e = document.getElementById("modalError");
+      e.textContent = msg; e.classList.remove("hidden");
+    }
+    function hideModalError() {
+      document.getElementById("modalError").classList.add("hidden");
+    }
+    document.getElementById("modalConfirm").onclick = () => {
+      if (modalCallback) {
+        const ok = modalCallback();
+        if (ok !== false) closeModal();
+      } else closeModal();
+    };
+
+    // ---------- UTIL ----------
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    }
+    function escapeAttr(s) { return escapeHtml(s); }
+    // Échappe une chaîne pour l'insérer comme argument dans un appel JS écrit à l'intérieur
+    // d'un attribut onclick="..." (nécessaire : des noms réels contiennent des apostrophes,
+    // ex. "Necrozma Ailes de l'Aurore", "Noadkoko d'Alola").
+    function jsAttrEscape(s) {
+      return String(s).replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+    }
+
+    // ---------- STARTING POINT FIELD BINDING ----------
+    // Éditer "Points Actuels" redéfinit aussi le point de départ (0% de la barre de progression) :
+    // sinon la barre resterait calculée par rapport à l'ancien baselinePoints, ce qui donnerait un
+    // pourcentage incohérent pour un utilisateur qui indique sa progression réelle au premier lancement.
+    document.getElementById("currentPoints").addEventListener("change", e => {
+      const v = parseInt(e.target.value, 10);
+      const n = isNaN(v) ? 1000 : v;
+      state.points = n;
+      state.baselinePoints = n;
+      save(); renderProgress();
+    });
+
+    // ---------- TARGET FIELD BINDINGS ----------
+    document.getElementById("targetPoints").addEventListener("change", e => {
+      const v = parseInt(e.target.value, 10);
+      state.targetPoints = isNaN(v) ? 2000 : v;
+      save(); renderProgress();
+    });
+    document.getElementById("targetRank").addEventListener("change", e => {
+      const v = parseInt(e.target.value, 10);
+      state.targetRank = isNaN(v) ? 10000 : v;
+      save();
+    });
+
+    // ---------- INIT ----------
+    // Le référentiel de cartes est déjà chargé de façon synchrone (cache/repli) tout en haut du script
+    // — voir loadCardsFromCacheOrDefault(), appelée avant même l'état des decks. Même principe pour le
+    // méta ici : d'abord SYNCHRONE (cache ou repli embarqué), pour que l'appli s'affiche immédiatement
+    // sans attendre le réseau — refreshMetaFromRemote()/refreshCardsFromRemote() tentent ensuite les
+    // fichiers distants en arrière-plan et ne ré-affichent que les blocs concernés si une meilleure
+    // version arrive, sans jamais bloquer le premier rendu.
+    loadMetaFromCacheOrDefault();
+    renderMetaSelector();
+    renderMeta();
+    renderUpdateBanner();
+    load();
+    loadCollection();
+    renderAll();
+    updateClock();
+    setInterval(updateClock, 1000);
+    refreshCardsFromRemote();
+    refreshMetaFromRemote();
+  </script>
+</body>
+</html>
