@@ -307,8 +307,8 @@
     // les récupèrent automatiquement, sans reconstruire ni repartager l'appli. Conséquence pratique :
     // l'appli redevient un fichier HTML unique à partager (plus besoin des 2 fichiers .js voisins).
     // Voir suivi-developpement.md pour le détail complet et l'historique du bug Android.
-    let CARTES_REMOTE_URL = "https://herrmann3000-coder.github.io/moncoach-jcc-pocket-meta/referentiel-cartes.json";
-    let PROMOS_REMOTE_URL = "https://herrmann3000-coder.github.io/moncoach-jcc-pocket-meta/referentiel-promos.json";
+    let CARTES_REMOTE_URL = "https://bytemason-software.github.io/mon-coach-jcc-pocket/referentiel-cartes.json";
+    let PROMOS_REMOTE_URL = "https://bytemason-software.github.io/mon-coach-jcc-pocket/referentiel-promos.json";
     const CARDS_CACHE_KEY = "moncoach_jcc_pocket_v2_cards_cache";
     const CARDS_FETCH_TIMEOUT_MS = 8000; // fichiers plus gros que le méta (~300 Ko) : marge un peu plus large
 
@@ -451,7 +451,7 @@
     // Le fichier meta-archetypes.json qui y est publié contient pour l'instant un contenu de départ
     // (les 4 archétypes historiques), à remplacer par Roadmap avec ses vraies propositions hebdomadaires
     // (voir suivi-meta.md) — Développement n'a pas vocation à éditer le contenu métier de ce fichier.
-    let META_REMOTE_URL = "https://herrmann3000-coder.github.io/moncoach-jcc-pocket-meta/meta-archetypes.json";
+    let META_REMOTE_URL = "https://bytemason-software.github.io/mon-coach-jcc-pocket/meta-archetypes.json";
     const META_CACHE_KEY = "moncoach_jcc_pocket_v2_meta_cache";
     const META_FETCH_TIMEOUT_MS = 5000;
     // Version de format la plus récente que CETTE version de l'appli sait lire — protège contre une
