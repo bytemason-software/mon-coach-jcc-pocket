@@ -640,6 +640,39 @@
       setOwnedCount(id, cur >= 2 ? 0 : cur + 1);
     }
 
+    // ---------- STATUT DE DECK (calculé à l'affichage, jamais stocké — demande Roadmap 28/09/2026) ----------
+    // Remplace l'ancien champ "status" éditable à la main dans la modale "Modifier le deck" (pouvait se
+    // désynchroniser de la réalité : un deck marqué "Validé" à la main restait affiché comme tel même
+    // après avoir cédé une carte de la collection). Le champ status est conservé tel quel sur les objets
+    // deck en LocalStorage (pas de migration destructrice) mais n'est plus lu pour l'affichage.
+    //
+    // Pour chaque id présent dans deck.cards, on compte combien de fois il apparaît (requis — un deck à
+    // 2 exemplaires d'une carte a son id répété 2 fois, ou 2 ids différents si réimpression), et on le
+    // compare à collection[id] (possédé). Un id ne peut jamais compter pour plus que son propre requis
+    // (2 exemplaires possédés d'une carte ne comblent pas le besoin d'une autre carte).
+    function computeDeckPossession(deck) {
+      const requiredById = {};
+      deck.cards.forEach(entry => {
+        if (typeof entry !== "string") return;
+        requiredById[entry] = (requiredById[entry] || 0) + 1;
+      });
+      let owned = 0;
+      Object.keys(requiredById).forEach(id => {
+        owned += Math.min(requiredById[id], getOwnedCount(id));
+      });
+      return owned;
+    }
+    // Retourne { status: "study"|"incomplete"|"validated", owned, total }.
+    // - "study" : deck.cards.length !== 20 (incomplet en nombre de cartes, indépendamment de la possession).
+    // - "incomplete" ("À compléter") : 20 cartes, mais au moins une pas possédée en quantité suffisante.
+    // - "validated" ("100% Validé") : 20 cartes, toutes possédées en quantité suffisante.
+    function computeDeckStatus(deck) {
+      const total = deck.cards.length;
+      const owned = computeDeckPossession(deck);
+      if (total !== 20) return { status: "study", owned: owned, total: total };
+      return { status: owned === 20 ? "validated" : "incomplete", owned: owned, total: 20 };
+    }
+
     // ---------- SANITIZATION (protège contre un LocalStorage corrompu ou d'une version antérieure) ----------
     function sanitizeState(raw) {
       raw = raw && typeof raw === "object" ? raw : {};
@@ -857,9 +890,18 @@
       tbody.innerHTML = "";
       state.decks.forEach(deck => {
         const deckWr = deck.matches ? Math.round((deck.wins / deck.matches) * 100) : 0;
-        const statusBadge = deck.status === "validated"
-          ? '<span class="rounded bg-emerald-900/40 px-2 py-0.5 text-[10px] font-bold uppercase text-emerald-300">Validé 100%</span>'
-          : '<span class="rounded bg-amber-900/40 px-2 py-0.5 text-[10px] font-bold uppercase text-amber-300">En étude</span>';
+        const ds = computeDeckStatus(deck);
+        let statusBadge;
+        if (ds.status === "validated") {
+          statusBadge = '<span class="rounded bg-emerald-900/40 px-2 py-0.5 text-[10px] font-bold uppercase text-emerald-300">100% Validé</span>';
+        } else if (ds.status === "incomplete") {
+          // "À compléter" : le compte détaillé (possédées/20) évite d'avoir à rouvrir l'éditeur de
+          // cartes juste pour savoir où on en est — le détail carte par carte, lui, reste dans l'éditeur.
+          statusBadge = '<span class="rounded bg-amber-900/40 px-2 py-0.5 text-[10px] font-bold uppercase text-amber-300">À compléter</span>' +
+            '<div class="mt-0.5 font-mono text-[9px] text-amber-400/80">' + ds.owned + '/20 possédées</div>';
+        } else {
+          statusBadge = '<span class="rounded bg-zinc-800 px-2 py-0.5 text-[10px] font-bold uppercase text-zinc-400">En étude</span>';
+        }
         const tr = document.createElement("tr");
         tr.className = "cursor-pointer border-t border-zinc-800 transition hover:bg-zinc-800/40 " + (deck.id === selectedDeckId ? "bg-cyan-950/30" : "");
         tr.onclick = () => selectDeck(deck.id);
@@ -877,16 +919,25 @@
         tbody.appendChild(tr);
       });
 
-      // match logger deck select
+      // match logger deck select — restreint aux decks "100% Validé" (demande Roadmap 28/09/2026) :
+      // on ne peut pas jouer un deck qu'on ne possède pas entièrement. Un deck "En étude" ou "À
+      // compléter" reste visible/éditable normalement dans l'Arsenal ci-dessus, juste absent d'ici.
       const sel = document.getElementById("matchDeck");
       const prev = sel.value;
       sel.innerHTML = "";
-      state.decks.forEach(d => {
+      const validatedDecks = state.decks.filter(d => computeDeckStatus(d).status === "validated");
+      if (validatedDecks.length === 0) {
+        const placeholder = document.createElement("option");
+        placeholder.value = ""; placeholder.disabled = true; placeholder.selected = true;
+        placeholder.textContent = "Aucun deck 100% validé";
+        sel.appendChild(placeholder);
+      }
+      validatedDecks.forEach(d => {
         const o = document.createElement("option");
         o.value = d.id; o.textContent = d.name;
         sel.appendChild(o);
       });
-      if (prev) sel.value = prev;
+      if (prev && validatedDecks.some(d => String(d.id) === prev)) sel.value = prev;
     }
 
     // ---------- RENDER: CARD INSPECTOR ----------
@@ -1024,11 +1075,49 @@
     }
 
     // ---------- DECK ACTIONS ----------
+    // Liste des archétypes méta utilisables pour générer un deck : seuls ceux avec un champ "cards"
+    // (tableau de 20 ids, ajouté optionnellement par Roadmap dans meta-archetypes.json) le permettent —
+    // un archétype sans "cards" continue de fonctionner normalement (conseil affiché), juste sans option
+    // de génération ici. Recalculée à chaque ouverture pour refléter la liste méta courante.
+    function metaArchetypesWithCards() {
+      return metaState.archetypes.filter(a => Array.isArray(a.cards) && a.cards.length > 0);
+    }
+
     function addDeck() {
-      const id = Date.now();
-      state.decks.push({ id: id, name: "Nouveau Deck", status: "study", matches: 0, wins: 0, losses: 0, cards: [] });
-      save(); renderDecks();
-      renameDeck(id);
+      const sources = metaArchetypesWithCards();
+      const sourceOptions = '<option value="">Deck vide</option>' +
+        sources.map((a, i) => '<option value="' + i + '">' + escapeHtml("Créer depuis le méta : " + a.name) + '</option>').join("");
+      openModal("Nouveau deck",
+        '<div class="space-y-3">' +
+          '<div>' +
+            '<label class="text-xs text-zinc-500">Nom</label>' +
+            '<input id="newDeckName" class="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-white outline-none focus:border-cyan-500" value="Nouveau Deck" />' +
+          '</div>' +
+          (sources.length > 0
+            ? '<div>' +
+                '<label class="text-xs text-zinc-500">Origine</label>' +
+                '<select id="newDeckSource" class="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-white outline-none focus:border-cyan-500">' + sourceOptions + '</select>' +
+                '<p class="mt-1 text-[10px] text-zinc-600">Le statut ("En étude"/"À compléter"/"100% Validé") se recalcule automatiquement selon votre collection — aucune action de plus à faire ici.</p>' +
+              '</div>'
+            : "") +
+        '</div>',
+        () => {
+          const name = document.getElementById("newDeckName").value.trim();
+          if (!name) { showModalError("Le nom ne peut pas être vide."); return false; }
+          let cards = [];
+          const srcEl = document.getElementById("newDeckSource");
+          if (srcEl && srcEl.value !== "") {
+            const archetype = sources[parseInt(srcEl.value, 10)];
+            // Un id du méta absent du référentiel (fichier distant corrompu/décalé) est ignoré
+            // silencieusement plutôt que de planter ou d'ajouter un placeholder "à réassigner" —
+            // ce n'est pas une carte issue d'un deck existant, juste une génération incomplète.
+            cards = archetype ? archetype.cards.filter(cid => CARD_BY_ID.hasOwnProperty(cid)) : [];
+          }
+          state.decks.push({ id: Date.now(), name: name, status: "study", matches: 0, wins: 0, losses: 0, cards: cards });
+          save(); renderAll();
+          return true;
+        });
+      setTimeout(() => document.getElementById("newDeckName").focus(), 50);
     }
 
     function renameDeck(id) {
@@ -1040,19 +1129,11 @@
             '<label class="text-xs text-zinc-500">Nom</label>' +
             '<input id="renameInput" class="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-white outline-none focus:border-cyan-500" value="' + escapeAttr(deck.name) + '" />' +
           '</div>' +
-          '<div>' +
-            '<label class="text-xs text-zinc-500">Statut</label>' +
-            '<select id="statusInput" class="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-white outline-none focus:border-cyan-500">' +
-              '<option value="validated"' + (deck.status === "validated" ? " selected" : "") + '>Validé 100%</option>' +
-              '<option value="study"' + (deck.status !== "validated" ? " selected" : "") + '>En étude</option>' +
-            '</select>' +
-          '</div>' +
         '</div>',
         () => {
           const v = document.getElementById("renameInput").value.trim();
           if (!v) { showModalError("Le nom ne peut pas être vide."); return false; }
           deck.name = v;
-          deck.status = document.getElementById("statusInput").value === "validated" ? "validated" : "study";
           save(); renderAll();
           return true;
         });
