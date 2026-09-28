@@ -37,17 +37,6 @@
 </head>
 <body class="min-h-screen bg-zinc-950 text-zinc-200 font-sans antialiased selection:bg-cyan-500/30">
 
-  <!-- ANTI-TILT LOCKDOWN OVERLAY -->
-  <div id="tiltLock" class="fixed inset-0 z-50 hidden items-center justify-center bg-red-950/95 backdrop-blur-sm">
-    <div class="mx-4 max-w-md rounded-2xl border border-red-500/40 bg-zinc-900/80 p-8 text-center shadow-2xl">
-      <div class="mb-3 text-5xl">🛑</div>
-      <h2 class="text-2xl font-bold text-red-400">ANTI-TILT LOCKDOWN</h2>
-      <p class="mt-2 text-sm text-zinc-400">2 défaites consécutives détectées. Prends une pause pour reset ton mental.</p>
-      <div id="tiltCountdown" class="my-6 font-mono text-6xl font-bold tabular-nums text-red-300">20:00</div>
-      <p class="text-xs text-zinc-500">Le verrou se lèvera automatiquement à 00:00.</p>
-    </div>
-  </div>
-
   <div class="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-8">
 
     <!-- HEADER -->
@@ -139,9 +128,14 @@
              (distante, en cache, ou de repli) — plus de liste figée dans le HTML, voir chantier
              "méta auto-rafraîchie" dans suivi-developpement.md. -->
         <select id="matchOpponent" class="mb-4 mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-white outline-none focus:border-cyan-500"></select>
+        <!-- Badge de série de victoires : visible uniquement si state.winStreak > 0 (renderStreak) -->
+        <div id="winStreakBadge" class="mb-3 hidden items-center justify-between rounded-lg border border-amber-500/40 bg-amber-950/40 px-3 py-2 text-sm">
+          <span id="winStreakText" class="font-semibold text-amber-300"></span>
+          <span id="winStreakNext" class="font-mono text-xs text-amber-400/80"></span>
+        </div>
         <div class="grid grid-cols-2 gap-3">
-          <button onclick="logMatch('win')" class="rounded-lg bg-emerald-600 py-2.5 text-sm font-bold text-white transition hover:bg-emerald-500">VICTOIRE +150</button>
-          <button onclick="logMatch('loss')" class="rounded-lg bg-red-600 py-2.5 text-sm font-bold text-white transition hover:bg-red-500">DÉFAITE -100</button>
+          <button id="winButton" onclick="logMatch('win')" class="rounded-lg bg-emerald-600 py-2.5 text-sm font-bold text-white transition hover:bg-emerald-500">VICTOIRE +10</button>
+          <button onclick="logMatch('loss')" class="rounded-lg bg-red-600 py-2.5 text-sm font-bold text-white transition hover:bg-red-500">DÉFAITE -10</button>
         </div>
       </section>
 
@@ -600,7 +594,7 @@
       targetRank: 10000,
       decks: materializeDefaultDecks(),
       history: [], // {ts, deck, opponent, result, delta}
-      tiltUntil: 0, // timestamp ms
+      winStreak: 0, // victoires consécutives de la série en cours (remis à 0 par une défaite)
     };
     let selectedDeckId = null;
 
@@ -686,9 +680,19 @@
         history: Array.isArray(raw.history)
           ? raw.history.filter(m => m && typeof m === "object" && typeof m.ts === "number" && (m.result === "win" || m.result === "loss"))
           : [],
-        tiltUntil: (typeof raw.tiltUntil === "number" && !isNaN(raw.tiltUntil)) ? raw.tiltUntil : 0,
+        winStreak: 0, // calculé juste après (dépend de history)
         decks: [],
       };
+      // Série de victoires : valeur stockée si valide ; sinon (LocalStorage antérieur à ce champ)
+      // reconstituée à partir des victoires consécutives en tête de l'historique (plus récent en premier).
+      // L'ancien champ "tiltUntil" (anti-tilt supprimé) n'est plus recopié : il disparaît au prochain save().
+      if (typeof raw.winStreak === "number" && isFinite(raw.winStreak) && raw.winStreak >= 0) {
+        safe.winStreak = Math.floor(raw.winStreak);
+      } else {
+        let n = 0;
+        while (n < safe.history.length && safe.history[n].result === "win") n++;
+        safe.winStreak = n;
+      }
 
       const rawDecks = Array.isArray(raw.decks) ? raw.decks : [];
       safe.decks = rawDecks.map(d => {
@@ -989,13 +993,14 @@
           '<td class="px-4 py-2 text-zinc-300">' + escapeHtml(m.deck) + '</td>' +
           '<td class="px-4 py-2 text-zinc-400">' + escapeHtml(m.opponent) + '</td>' +
           '<td class="px-4 py-2 text-center"><span class="' + (m.result === "win" ? "text-emerald-400" : "text-red-400") + ' font-semibold">' + (m.result === "win" ? "Victoire" : "Défaite") + '</span></td>' +
-          '<td class="px-4 py-2 text-right font-mono ' + (m.delta > 0 ? "text-emerald-400" : "text-red-400") + '">' + (m.delta > 0 ? "+" : "") + m.delta + '</td>';
+          '<td class="px-4 py-2 text-right font-mono ' + (m.delta > 0 ? "text-emerald-400" : (m.delta < 0 ? "text-red-400" : "text-zinc-500")) + '">' + (m.delta > 0 ? "+" : "") + m.delta + '</td>';
         tbody.appendChild(tr);
       });
     }
 
     function renderAll() {
       renderProgress();
+      renderStreak();
       renderBreakdown();
       renderDecks();
       renderHistory();
@@ -1003,13 +1008,34 @@
     }
 
     // ---------- MATCH LOGGING ----------
+    // Barème : défaite = -10 fixe ; victoire = 10 + 3×(n−1) pour la n-ième victoire consécutive
+    // (+10, +13, +16, +19...). Plancher de rang Master Ball : une fois à 810 Pts ou plus, une défaite
+    // ne peut plus faire redescendre sous 810 (ne concerne que logMatch, pas l'édition manuelle
+    // du champ "Points Actuels").
+    const LOSS_POINTS = 10;
+    const WIN_BASE_POINTS = 10;
+    const WIN_STREAK_BONUS = 3;
+    const RANK_FLOOR_POINTS = 810;
+
+    function winGainForStreak(n) { // n = rang de la victoire dans la série (1 = première)
+      return WIN_BASE_POINTS + WIN_STREAK_BONUS * (Math.max(1, n) - 1);
+    }
+
     function logMatch(result) {
-      if (Date.now() < state.tiltUntil) return; // locked
       const deckId = parseInt(document.getElementById("matchDeck").value, 10);
       const deck = state.decks.find(d => d.id === deckId);
       const opponent = document.getElementById("matchOpponent").value;
-      const delta = result === "win" ? 150 : -100;
-      state.points += delta;
+      const before = state.points;
+      if (result === "win") {
+        state.winStreak = (state.winStreak || 0) + 1;
+        state.points = before + winGainForStreak(state.winStreak);
+      } else {
+        state.winStreak = 0;
+        const wasAtOrAboveFloor = before >= RANK_FLOOR_POINTS;
+        state.points = before - LOSS_POINTS;
+        if (wasAtOrAboveFloor && state.points < RANK_FLOOR_POINTS) state.points = RANK_FLOOR_POINTS;
+      }
+      const delta = state.points - before; // delta réellement appliqué (plancher inclus)
       if (deck) {
         deck.matches = (deck.matches || 0) + 1;
         if (result === "win") deck.wins = (deck.wins || 0) + 1;
@@ -1022,30 +1048,25 @@
         result: result,
         delta: delta,
       });
-      // anti-tilt: 2 consecutive losses
-      const last2 = state.history.slice(0, 2);
-      if (last2.length === 2 && last2.every(m => m.result === "loss")) {
-        state.tiltUntil = Date.now() + 20 * 60 * 1000;
-      }
       save();
       renderAll();
-      checkTilt();
     }
 
-    // ---------- ANTI-TILT ----------
-    function checkTilt() {
-      const lock = document.getElementById("tiltLock");
-      const remaining = state.tiltUntil - Date.now();
-      if (remaining > 0) {
-        lock.classList.remove("hidden");
-        lock.classList.add("flex");
-        const mm = String(Math.floor(remaining / 60000)).padStart(2, "0");
-        const ss = String(Math.floor((remaining % 60000) / 1000)).padStart(2, "0");
-        document.getElementById("tiltCountdown").textContent = mm + ":" + ss;
+    // ---------- RENDER: SÉRIE DE VICTOIRES ----------
+    function renderStreak() {
+      const n = state.winStreak || 0;
+      const badge = document.getElementById("winStreakBadge");
+      const next = winGainForStreak(n + 1);
+      document.getElementById("winButton").textContent = "VICTOIRE +" + next;
+      if (n > 0) {
+        document.getElementById("winStreakText").textContent =
+          "🔥 " + n + (n === 1 ? " victoire consécutive" : " victoires consécutives");
+        document.getElementById("winStreakNext").textContent = "prochaine : +" + next;
+        badge.classList.remove("hidden");
+        badge.classList.add("flex");
       } else {
-        if (state.tiltUntil !== 0) { state.tiltUntil = 0; save(); }
-        lock.classList.add("hidden");
-        lock.classList.remove("flex");
+        badge.classList.add("hidden");
+        badge.classList.remove("flex");
       }
     }
 
@@ -1070,8 +1091,6 @@
       const adv = document.getElementById("advisor");
       adv.textContent = msg;
       adv.className = "mt-4 rounded-lg px-3 py-3 text-sm font-semibold transition-colors " + cls;
-
-      checkTilt();
     }
 
     // ---------- DECK ACTIONS ----------
@@ -1419,11 +1438,11 @@
           state = {
             points: 1000, baselinePoints: 1000, targetPoints: 2000, targetRank: 10000,
             decks: materializeDefaultDecks(),
-            history: [], tiltUntil: 0,
+            history: [], winStreak: 0,
           };
           selectedDeckId = null;
           document.getElementById("inspectorSection").classList.add("hidden");
-          save(); renderAll(); checkTilt();
+          save(); renderAll();
           return true;
         });
     }
