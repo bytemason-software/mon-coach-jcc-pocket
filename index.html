@@ -5,6 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Mon Coach JCC Pocket - Pro Edition v2.0</title>
   <meta name="description" content="Dashboard tournoi JCC Pocket - Pro Edition v2.0" />
+  <!-- PWA (installation "écran d'accueil") : manifest + icônes, chemins relatifs (site dans /mon-coach-jcc-pocket/).
+       Volontairement SANS service worker : l'icône ouvre toujours la version en ligne à jour. -->
+  <link rel="manifest" href="manifest.webmanifest" />
+  <meta name="theme-color" content="#09090b" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
+  <meta name="apple-mobile-web-app-title" content="Coach JCC" />
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
