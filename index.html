@@ -1202,11 +1202,6 @@
           '</div>' +
         '</div>',
         () => {
-          const total = cardEditorDraft.cards.length;
-          if (total !== 20) {
-            showModalError("Règle A échouée : le deck doit contenir EXACTEMENT 20 cartes (actuellement " + total + ").");
-            return false;
-          }
           const groups = groupDraftCards(cardEditorDraft.cards);
           const offenders = groups.filter(g => g.entries.length > 2);
           if (offenders.length > 0) {
