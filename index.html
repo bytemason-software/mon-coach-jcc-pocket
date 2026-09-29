@@ -49,6 +49,25 @@
       background: var(--brand-bg); border-radius: 1px; transition: left .5s; }
     .brand-logo { width: 44px; height: 44px; border-radius: 11px; flex: none; box-shadow: 0 0 0 1px #27272a; }
     @media (min-width: 640px) { .brand-logo { width: 52px; height: 52px; border-radius: 13px; } }
+
+    /* ===== Hauteur commune Logger / Winrate / Méta (29/09/2026) =====
+       Sur ordinateur (lg, 3 colonnes), c'est le Logger de Match qui fixe la hauteur de la rangée : les zones
+       .panel-fill des deux autres panneaux ont une base de 0 px (elles ne comptent pas dans la hauteur de la
+       rangée) puis s'étirent pour remplir l'espace laissé par le Logger. Sur téléphone/tablette (empilé), la
+       liste méta est limitée à 340 px et défile, le winrate reste en aperçu + bouton "Voir tout". */
+    .panel-col { display: flex; flex-direction: column; }
+    @media (min-width: 1024px) { .panel-fill { flex: 1 1 0; min-height: 0; } }
+    .meta-scroll-wrap { position: relative; display: flex; flex-direction: column; }
+    .meta-scroll { max-height: 340px; overflow-y: auto; padding-right: 4px; scrollbar-width: thin; scrollbar-color: rgba(34, 211, 238, .45) transparent; }
+    @media (min-width: 1024px) { .meta-scroll { max-height: none; flex: 1 1 0; min-height: 0; } }
+    .meta-scroll::-webkit-scrollbar { width: 6px; }
+    .meta-scroll::-webkit-scrollbar-track { background: transparent; }
+    .meta-scroll::-webkit-scrollbar-thumb { background: rgba(34, 211, 238, .45); }
+    /* Indice "il y a du contenu en dessous" : fondu vers la couleur du panneau, masqué une fois en bas de liste */
+    .meta-scroll-wrap::after { content: ""; position: absolute; left: 0; right: 10px; bottom: 0; height: 44px; pointer-events: none;
+      background: linear-gradient(to bottom, rgba(17, 17, 19, 0), rgb(17, 17, 19)); transition: opacity .2s; }
+    .meta-scroll-wrap.at-end::after { opacity: 0; }
+    .breakdown-wrap { overflow-y: auto; }
   </style>
   <!-- CSS Tailwind v3.4.17 COMPILÉ ET INTÉGRÉ (29/09/2026) — remplace le Play CDN (cdn.tailwindcss.com).
        Généré par le moteur Tailwind officiel (Play CDN 3.4.17, même configuration que l'ancien tailwind.config inline)
@@ -182,11 +201,13 @@
       </section>
 
       <!-- Per-opponent winrate breakdown -->
-      <section class="card-panel rounded-2xl border border-zinc-800 bg-zinc-900/50 p-5">
+      <section class="card-panel panel-col rounded-2xl border border-zinc-800 bg-zinc-900/50 p-5">
         <h2 class="mb-4 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-zinc-400">
           <span class="pip"></span> Winrate / Adversaire
         </h2>
-        <div class="overflow-hidden rounded-lg border border-zinc-800">
+        <!-- Aperçu : les adversaires les plus rencontrés (autant de lignes que la hauteur commune le permet sur ordinateur,
+             BREAKDOWN_PREVIEW sur téléphone/tablette) ; liste complète dans une modale -->
+        <div id="breakdownWrap" class="panel-fill breakdown-wrap rounded-lg border border-zinc-800">
           <table class="w-full text-sm">
             <thead class="bg-zinc-950/60 text-xs text-zinc-500">
               <tr><th class="px-3 py-2 text-left">Archétype</th><th class="px-3 py-2 text-right">V-D</th><th class="px-3 py-2 text-right">WR</th></tr>
@@ -194,10 +215,11 @@
             <tbody id="opponentBreakdown"></tbody>
           </table>
         </div>
+        <button id="breakdownMore" onclick="openBreakdownModal()" class="mt-3 hidden w-full rounded-lg border border-zinc-700 px-3 py-1.5 text-xs font-semibold text-zinc-300 hover:bg-zinc-800"></button>
       </section>
 
       <!-- 8. META STRATEGY REMINDERS -->
-      <section class="card-panel rounded-2xl border border-zinc-800 bg-zinc-900/50 p-5">
+      <section class="card-panel panel-col rounded-2xl border border-zinc-800 bg-zinc-900/50 p-5">
         <h2 class="mb-2 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-zinc-400">
           <span class="pip"></span> Méta — Rappels Stratégiques
         </h2>
@@ -205,7 +227,10 @@
              affiché (avec la date de dernière synchronisation connue) quand l'appli tourne sur le
              cache local ou, pire, sur la petite liste de repli embarquée — voir renderMetaFreshnessBadge(). -->
         <p id="metaFreshness" class="mb-3 hidden rounded-lg border border-amber-500/40 bg-amber-950/30 px-3 py-2 text-xs text-amber-300"></p>
-        <ul id="metaTips" class="space-y-2 text-sm"></ul>
+        <!-- Liste scrollable (hauteur commune) + fondu en bas tant qu'il reste du contenu à faire défiler -->
+        <div id="metaScrollWrap" class="meta-scroll-wrap panel-fill">
+          <ul id="metaTips" class="meta-scroll space-y-2 text-sm"></ul>
+        </div>
       </section>
 
       <!-- 3. ARSENAL MANAGEMENT -->
@@ -303,7 +328,7 @@
       <div id="modalBody" class="mt-4"></div>
       <div id="modalError" class="mt-3 hidden rounded-lg border border-red-500/40 bg-red-950/40 px-3 py-2 text-sm text-red-300"></div>
       <div class="mt-5 flex justify-end gap-3">
-        <button onclick="closeModal()" class="rounded-lg border border-zinc-700 px-4 py-2 text-sm text-zinc-300 hover:bg-zinc-800">Annuler</button>
+        <button id="modalCancel" onclick="closeModal()" class="rounded-lg border border-zinc-700 px-4 py-2 text-sm text-zinc-300 hover:bg-zinc-800">Annuler</button>
         <button id="modalConfirm" class="rounded-lg bg-cyan-600 px-4 py-2 text-sm font-bold text-white hover:bg-cyan-500">Confirmer</button>
       </div>
     </div>
@@ -852,19 +877,84 @@
       tbody.innerHTML = "";
       // La table s'adapte automatiquement à la taille de la liste méta courante (Top 8-10 visé,
       // "Other/Unknown" toujours en dernier) — plus de plafond figé à 4-5 lignes.
-      currentOpponentNames().forEach(op => {
+      breakdownRows().forEach(r => {
+        const tr = document.createElement("tr");
+        tr.className = "border-t border-zinc-800";
+        tr.innerHTML = breakdownRowHtml(r);
+        tbody.appendChild(tr);
+      });
+      fitBreakdown();
+    }
+
+    // Aperçu du winrate : n'affiche que les lignes qui tiennent. Sur ordinateur (3 colonnes), la place dispo
+    // est celle laissée par la hauteur du Logger ; ailleurs (panneaux empilés), BREAKDOWN_PREVIEW lignes.
+    // Le bouton "Voir tout (N)" n'apparaît que si des lignes sont masquées.
+    function fitBreakdown() {
+      const tbody = document.getElementById("opponentBreakdown");
+      const wrap = document.getElementById("breakdownWrap");
+      const more = document.getElementById("breakdownMore");
+      if (!tbody || !wrap || !more) return;
+      const rows = [...tbody.children];
+      rows.forEach(tr => tr.classList.remove("hidden"));
+      more.classList.add("hidden");
+      let limit = rows.length;
+      if (window.matchMedia("(min-width: 1024px)").matches) {
+        if (wrap.scrollHeight > wrap.clientHeight + 1) {
+          more.classList.remove("hidden"); // le bouton prend sa place avant de mesurer
+          const bottom = wrap.getBoundingClientRect().top + wrap.clientHeight;
+          limit = rows.filter(tr => tr.getBoundingClientRect().bottom <= bottom + 1).length;
+        }
+      } else {
+        limit = Math.min(rows.length, BREAKDOWN_PREVIEW);
+      }
+      limit = Math.max(1, limit);
+      rows.forEach((tr, i) => tr.classList.toggle("hidden", i >= limit));
+      if (limit < rows.length) {
+        more.textContent = "Voir tout (" + rows.length + ")";
+        more.classList.remove("hidden");
+      } else {
+        more.classList.add("hidden");
+      }
+    }
+
+    // Affichage seulement (29/09/2026) : même calcul qu'avant, lignes triées par nombre de matchs joués
+    // (les plus rencontrés d'abord ; à égalité, ordre de la liste méta conservé — tri stable).
+    const BREAKDOWN_PREVIEW = 5;
+    function breakdownRows() {
+      return currentOpponentNames().map(op => {
         const matches = state.history.filter(m => m.opponent === op);
         const wins = matches.filter(m => m.result === "win").length;
         const losses = matches.length - wins;
         const wr = matches.length ? Math.round((wins / matches.length) * 100) : 0;
-        const tr = document.createElement("tr");
-        tr.className = "border-t border-zinc-800";
-        tr.innerHTML =
-          '<td class="px-3 py-2 text-zinc-300">' + escapeHtml(op) + '</td>' +
-          '<td class="px-3 py-2 text-right font-mono text-zinc-400">' + wins + '-' + losses + '</td>' +
-          '<td class="px-3 py-2 text-right font-mono ' + (wr >= 50 ? "text-emerald-400" : "text-red-400") + '">' + (matches.length ? wr + "%" : "—") + '</td>';
-        tbody.appendChild(tr);
-      });
+        return { op: op, n: matches.length, wins: wins, losses: losses, wr: wr };
+      }).sort((a, b) => b.n - a.n);
+    }
+    function breakdownRowHtml(r) {
+      return '<td class="px-3 py-2 text-zinc-300">' + escapeHtml(r.op) + '</td>' +
+        '<td class="px-3 py-2 text-right font-mono text-zinc-400">' + r.wins + '-' + r.losses + '</td>' +
+        '<td class="px-3 py-2 text-right font-mono ' + (r.wr >= 50 ? "text-emerald-400" : "text-red-400") + '">' + (r.n ? r.wr + "%" : "—") + '</td>';
+    }
+    function openBreakdownModal() {
+      const body = '<div class="max-h-80 overflow-y-auto rounded-lg border border-zinc-800"><table class="w-full text-sm">' +
+        '<thead class="sticky top-0 bg-zinc-950 text-xs text-zinc-500"><tr><th class="px-3 py-2 text-left">Archétype</th><th class="px-3 py-2 text-right">V-D</th><th class="px-3 py-2 text-right">WR</th></tr></thead><tbody>' +
+        breakdownRows().map(r => '<tr class="border-t border-zinc-800">' + breakdownRowHtml(r) + '</tr>').join("") +
+        '</tbody></table></div>';
+      openInfoModal("Winrate par adversaire", body);
+    }
+    // Modale d'information : un seul bouton "Fermer" (libellés remis par défaut au prochain openModal)
+    function openInfoModal(title, bodyHtml) {
+      openModal(title, bodyHtml, null);
+      document.getElementById("modalConfirm").textContent = "Fermer";
+      document.getElementById("modalCancel").classList.add("hidden");
+    }
+
+    // Fondu "contenu en dessous" de la liste méta : masqué quand on est en bas (ou si tout tient)
+    function updateMetaScrollHint() {
+      const ul = document.getElementById("metaTips");
+      const wrap = document.getElementById("metaScrollWrap");
+      if (!ul || !wrap) return;
+      const atEnd = ul.scrollTop + ul.clientHeight >= ul.scrollHeight - 4;
+      wrap.classList.toggle("at-end", atEnd);
     }
 
     // ---------- RENDER: MATCH OPPONENT SELECTOR (méta dynamique) ----------
@@ -895,6 +985,7 @@
         ul.appendChild(li);
       });
       renderMetaFreshnessBadge();
+      updateMetaScrollHint();
     }
 
     // Convertit une date "AAAA-MM-JJ" (format attendu du champ updatedAt, voir suivi-developpement.md)
@@ -1069,6 +1160,8 @@
       renderDecks();
       renderHistory();
       if (selectedDeckId) selectDeck(selectedDeckId);
+      fitBreakdown();         // le Logger change de hauteur (badge de série) : réévalue l'aperçu winrate
+      updateMetaScrollHint(); // … et le fondu de la liste méta
     }
 
     // ---------- MATCH LOGGING ----------
@@ -1517,6 +1610,9 @@
       document.getElementById("modalTitle").textContent = title;
       document.getElementById("modalBody").innerHTML = bodyHtml;
       hideModalError();
+      // Libellés par défaut (une modale d'information, voir openInfoModal, les change temporairement)
+      document.getElementById("modalConfirm").textContent = "Confirmer";
+      document.getElementById("modalCancel").classList.remove("hidden");
       modalCallback = onConfirm;
       const m = document.getElementById("modal");
       m.classList.remove("hidden");
@@ -1595,6 +1691,8 @@
     renderAll();
     updateClock();
     setInterval(updateClock, 1000);
+    document.getElementById("metaTips").addEventListener("scroll", updateMetaScrollHint, { passive: true });
+    window.addEventListener("resize", () => { fitBreakdown(); updateMetaScrollHint(); });
     refreshCardsFromRemote();
     refreshMetaFromRemote();
   </script>
