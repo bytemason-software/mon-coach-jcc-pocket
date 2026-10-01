@@ -68,6 +68,7 @@
       background: linear-gradient(to bottom, rgba(17, 17, 19, 0), rgb(17, 17, 19)); transition: opacity .2s; }
     .meta-scroll-wrap.at-end::after { opacity: 0; }
     .breakdown-wrap { overflow-y: auto; }
+    @media (min-width: 640px) { .footer-actions { flex: none; justify-content: flex-end; } }
 
     /* ===== Pokédex (01/10/2026) — CSS maison, aucune nouvelle classe Tailwind ===== */
     #modalPanel.modal-wide { max-width: 64rem; max-height: calc(100vh - 2rem); overflow-y: auto; }
@@ -353,9 +354,15 @@
     <!-- FOOTER -->
     <footer class="mt-6 flex flex-col items-center gap-3 border-t border-zinc-800 pt-5 sm:flex-row sm:justify-between">
       <p class="text-xs text-zinc-600">Mon Coach JCC Pocket — Pro Edition v2.0 · Sauvegarde locale automatique</p>
-      <button onclick="hardReset()" class="rounded-lg border border-red-500/40 bg-red-950/40 px-4 py-2 text-xs font-bold text-red-400 transition hover:bg-red-900/50">
-        ⚠ RESET COMPLET (vider le cache)
-      </button>
+      <!-- Mes données (01/10/2026) : sauvegarde / restauration par fichier, tout reste sur l'appareil (aucune requête réseau) -->
+      <div class="footer-actions flex flex-wrap items-center justify-center gap-2">
+        <button onclick="exportBackup()" title="Télécharge un fichier avec vos decks, votre collection, vos matchs, vos points et vos objectifs" class="rounded-lg border border-zinc-700 px-4 py-2 text-xs font-bold text-zinc-300 transition hover:bg-zinc-800">💾 Sauvegarder mes données</button>
+        <button onclick="pickBackupFile()" title="Remplace les données de cet appareil par celles d'un fichier de sauvegarde" class="rounded-lg border border-zinc-700 px-4 py-2 text-xs font-bold text-zinc-300 transition hover:bg-zinc-800">📂 Restaurer une sauvegarde</button>
+        <input id="backupFileInput" type="file" accept=".json,application/json" class="hidden" />
+        <button onclick="hardReset()" class="rounded-lg border border-red-500/40 bg-red-950/40 px-4 py-2 text-xs font-bold text-red-400 transition hover:bg-red-900/50">
+          ⚠ RESET COMPLET (vider le cache)
+        </button>
+      </div>
     </footer>
   </div>
 
@@ -698,6 +705,10 @@
       const trimmed = entry.trim();
       if (trimmed.indexOf(UNRESOLVED_PREFIX) === 0) return trimmed; // déjà un placeholder
       if (CARD_BY_ID.hasOwnProperty(trimmed)) return trimmed; // déjà un id valide
+      // Correctif 01/10/2026 : un id au format référentiel (ex. "A1-001", "A2b-111", "P-A-001") absent du référentiel
+      // COURANT est gardé tel quel. Au démarrage (cache vidé, hors-ligne) ou lors d'une restauration, seul le petit
+      // repli embarqué peut être chargé : le transformer en "à réassigner" abîmait définitivement le deck.
+      if (/^[A-Z][0-9A-Za-z]*(-[A-Z])?-\d{3}$/.test(trimmed)) return trimmed;
       const matches = NAME_INDEX[trimmed];
       if (matches && matches.length === 1) return matches[0]; // résolution sûre, non ambiguë
       return UNRESOLVED_PREFIX + trimmed; // 0 ou plusieurs matches -> on ne devine pas, on signale
@@ -1767,6 +1778,156 @@
       if (w) w.classList.add("hidden");
       renderCESelected();
     }
+
+    // ---------- SAUVEGARDE / RESTAURATION PAR FICHIER (01/10/2026) ----------
+    // Le "paquet" est l'unité d'échange : c'est aussi lui que la future synchro (Google Drive du joueur) enverra.
+    // Il contient uniquement les données propres à l'utilisateur, jamais les caches (référentiel, méta).
+    const BACKUP_FORMAT = "mon-coach-jcc-pocket-sauvegarde";
+    const BACKUP_SCHEMA_VERSION = 1;
+    const BACKUP_MAX_BYTES = 5 * 1024 * 1024;
+
+    // Rassemble toutes les données utilisateur en un seul objet.
+    function buildBackupPacket() {
+      const st = JSON.parse(JSON.stringify(state));
+      return {
+        format: BACKUP_FORMAT,
+        schemaVersion: BACKUP_SCHEMA_VERSION,
+        appVersion: APP_VERSION,
+        exportedAt: new Date().toISOString(),
+        data: {
+          state: {
+            points: st.points, baselinePoints: st.baselinePoints, targetPoints: st.targetPoints, targetRank: st.targetRank,
+            winStreak: st.winStreak, decks: st.decks, history: st.history
+          },
+          collection: JSON.parse(JSON.stringify(collection))
+        }
+      };
+    }
+
+    // Valide un paquet SANS rien modifier. Retourne { ok, error } ou { ok, state, collection, summary }.
+    function validateBackupPacket(p) {
+      const bad = msg => ({ ok: false, error: msg });
+      if (!p || typeof p !== "object" || Array.isArray(p)) return bad("Ce fichier n'est pas une sauvegarde de Mon Coach JCC Pocket.");
+      if (p.format !== BACKUP_FORMAT) return bad("Ce fichier n'est pas une sauvegarde de Mon Coach JCC Pocket.");
+      if (typeof p.schemaVersion !== "number" || !Number.isInteger(p.schemaVersion) || p.schemaVersion < 1)
+        return bad("Version de sauvegarde inconnue : le fichier semble abîmé.");
+      if (p.schemaVersion > BACKUP_SCHEMA_VERSION)
+        return bad("Cette sauvegarde vient d'une version plus récente de l'appli (format " + p.schemaVersion + "). Rechargez l'appli pour obtenir la dernière version, puis réessayez.");
+      const d = p.data;
+      if (!d || typeof d !== "object" || !d.state || typeof d.state !== "object" || Array.isArray(d.state))
+        return bad("Sauvegarde incomplète : les données de jeu sont absentes.");
+      if (!Array.isArray(d.state.decks) || !Array.isArray(d.state.history))
+        return bad("Sauvegarde incomplète : la liste des decks ou l'historique des matchs est absent.");
+      if (d.collection !== undefined && (d.collection === null || typeof d.collection !== "object" || Array.isArray(d.collection)))
+        return bad("Sauvegarde abîmée : la collection n'a pas le bon format.");
+      // Passage par les mêmes nettoyages qu'au chargement normal (tolère aussi d'anciens formats de données)
+      const newState = sanitizeState(d.state);
+      const newCollection = sanitizeCollection(d.collection || {});
+      return {
+        ok: true, state: newState, collection: newCollection,
+        summary: {
+          exportedAt: typeof p.exportedAt === "string" ? p.exportedAt : null,
+          appVersion: typeof p.appVersion === "string" ? p.appVersion : null,
+          decks: newState.decks.length, matches: newState.history.length,
+          owned: Object.keys(newCollection).length, points: newState.points
+        }
+      };
+    }
+
+    // Applique un paquet après validation. Rien n'est modifié si le paquet est invalide.
+    function applyBackupPacket(p) {
+      const v = validateBackupPacket(p);
+      if (!v.ok) return v;
+      state = v.state;
+      collection = v.collection;
+      save();
+      saveCollection();
+      selectedDeckId = null;
+      const insp = document.getElementById("inspectorSection");
+      if (insp) insp.classList.add("hidden");
+      renderAll();
+      return v;
+    }
+
+    function backupFileName(date) {
+      const d = date || new Date();
+      const pad = n => String(n).padStart(2, "0");
+      return "mon-coach-sauvegarde-" + d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()) + ".json";
+    }
+    function isIOS() {
+      return /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    }
+    // Télécharge le paquet. Sur iPhone/iPad, on passe par la feuille de partage du système quand elle sait
+    // partager un fichier ("Enregistrer dans Fichiers") : le téléchargement direct n'y est pas fiable,
+    // surtout dans l'appli installée sur l'écran d'accueil.
+    function exportBackup() {
+      const json = JSON.stringify(buildBackupPacket(), null, 2);
+      const name = backupFileName();
+      const blob = new Blob([json], { type: "application/json" });
+      if (isIOS() && typeof File === "function" && navigator.canShare) {
+        try {
+          const file = new File([blob], name, { type: "application/json" });
+          if (navigator.canShare({ files: [file] })) {
+            navigator.share({ files: [file], title: name }).catch(() => {});
+            return name;
+          }
+        } catch (e) {}
+      }
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = name; a.rel = "noopener"; a.style.display = "none";
+      document.body.appendChild(a); a.click();
+      setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1500);
+      return name;
+    }
+
+    function pickBackupFile() {
+      const input = document.getElementById("backupFileInput");
+      input.value = ""; // permet de rechoisir le même fichier
+      input.click();
+    }
+    function formatBackupDate(iso) {
+      if (!iso) return "date inconnue";
+      const d = new Date(iso);
+      return isNaN(d) ? "date inconnue" : d.toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+    }
+    // Lecture du fichier choisi → validation → confirmation → remplacement
+    function handleBackupText(text) {
+      let p;
+      try { p = JSON.parse(text); }
+      catch (e) { openInfoModal("Restauration impossible", '<p class="text-sm text-zinc-300">Le fichier est illisible ou incomplet (JSON invalide). Aucune donnée n\'a été modifiée.</p>'); return; }
+      const v = validateBackupPacket(p);
+      if (!v.ok) { openInfoModal("Restauration impossible", '<p class="text-sm text-zinc-300">' + escapeHtml(v.error) + '</p><p class="mt-2 text-xs text-zinc-500">Aucune donnée n\'a été modifiée.</p>'); return; }
+      const s = v.summary;
+      openModal("Restaurer cette sauvegarde ?",
+        '<div class="space-y-3 text-sm">' +
+          '<div class="rounded-xl border border-zinc-800 bg-zinc-950/60 p-3 text-zinc-300">' +
+            '<div>Sauvegarde du <span class="font-semibold text-white">' + escapeHtml(formatBackupDate(s.exportedAt)) + '</span>' + (s.appVersion ? ' <span class="text-xs text-zinc-500">(appli ' + escapeHtml(s.appVersion) + ')</span>' : '') + '</div>' +
+            '<div class="mt-1 text-xs text-zinc-400">' + s.decks + ' deck' + (s.decks > 1 ? 's' : '') + ' · ' + s.matches + ' match' + (s.matches > 1 ? 's' : '') + ' · ' + s.owned + ' carte' + (s.owned > 1 ? 's' : '') + ' possédée' + (s.owned > 1 ? 's' : '') + ' · ' + s.points + ' pts</div>' +
+          '</div>' +
+          '<div class="rounded-lg border border-amber-500/40 bg-amber-950/30 px-3 py-2 text-xs text-amber-300">⚠ Ceci remplace les données actuelles de cet appareil (decks, collection, historique, points, objectifs). Les données actuelles seront perdues si vous ne les avez pas sauvegardées.</div>' +
+          '<button type="button" onclick="exportBackup()" class="w-full rounded-lg border border-zinc-700 px-4 py-2 text-xs font-bold text-zinc-300 transition hover:bg-zinc-800">💾 Sauvegarder d\'abord mes données actuelles</button>' +
+        '</div>',
+        () => {
+          const r = applyBackupPacket(p);
+          if (!r.ok) { showModalError(r.error); return false; }
+          setTimeout(() => openInfoModal("Sauvegarde restaurée", '<p class="text-sm text-zinc-300">Vos données ont été remplacées par celles de la sauvegarde du ' + escapeHtml(formatBackupDate(s.exportedAt)) + '.</p>'), 0);
+          return true;
+        });
+      document.getElementById("modalConfirm").textContent = "Restaurer";
+    }
+    document.getElementById("backupFileInput").addEventListener("change", e => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      if (file.size > BACKUP_MAX_BYTES) {
+        openInfoModal("Restauration impossible", '<p class="text-sm text-zinc-300">Ce fichier est trop volumineux pour être une sauvegarde de l\'appli. Aucune donnée n\'a été modifiée.</p>');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = () => handleBackupText(String(reader.result || ""));
+      reader.onerror = () => openInfoModal("Restauration impossible", '<p class="text-sm text-zinc-300">Le fichier n\'a pas pu être lu. Aucune donnée n\'a été modifiée.</p>');
+      reader.readAsText(file);
+    });
 
     // ---------- HARD RESET ----------
     function hardReset() {
