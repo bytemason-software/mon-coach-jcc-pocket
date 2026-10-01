@@ -96,6 +96,10 @@
     .pkdx-stat { display: grid; grid-template-columns: 4.2rem 1fr auto; align-items: center; gap: 8px; font-size: 11px; color: #a1a1aa; }
     .pkdx-stat .num { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: #d4d4d8; white-space: nowrap; }
     .gauge-track.gauge-sm { height: 6px; }
+    /* Bouton d'en-tête Index.Pckt (01/10/2026) : dégradé rose → violet de la sphère, texte foncé (contraste ≥ 4,1:1 partout, ~5,5:1 sous le texte) */
+    .btn-orb { background-image: linear-gradient(90deg, #ffa3ff, #9b37fb); color: var(--brand-bg); font-weight: 700; transition: filter .15s, transform .05s; }
+    .btn-orb:hover { filter: brightness(1.1); }
+    .btn-orb:active { transform: translateY(1px); }
     .pkdx-logo { display: inline-block; vertical-align: -0.2em; flex: none; filter: drop-shadow(0 0 6px rgb(193 80 252 / .5)); }
     .pkdx-title { display: inline-flex; align-items: center; gap: 10px; }
     .pkdx-2col { display: grid; grid-template-columns: 1fr; gap: 8px; }
@@ -141,7 +145,7 @@
         </div>
       </div>
       <div class="flex items-center gap-4">
-        <button onclick="openPokedex()" title="Toutes les cartes : parcourir, filtrer, cocher sa possession et suivre sa complétion" class="rounded-lg border border-emerald-500/40 bg-emerald-950/30 px-3 py-1.5 text-xs font-bold text-emerald-300 transition hover:bg-emerald-900/40"><svg class="pkdx-logo" width="22" height="22" viewBox="0 0 64 64" aria-hidden="true"><defs><radialGradient id="pkOH" cx="34%" cy="28%" r="78%" fx="30%" fy="22%"><stop offset="0" stop-color="#ffa3ff"/><stop offset=".22" stop-color="#fe87fe"/><stop offset=".42" stop-color="#e86cfe"/><stop offset=".6" stop-color="#db61ff"/><stop offset=".78" stop-color="#c150fc"/><stop offset="1" stop-color="#9b37fb"/></radialGradient><radialGradient id="pkSH" cx="38%" cy="34%" r="70%"><stop offset=".6" stop-color="#791bff" stop-opacity="0"/><stop offset="1" stop-color="#791bff" stop-opacity=".45"/></radialGradient><radialGradient id="pkHH"><stop offset="0" stop-color="#fff" stop-opacity=".75"/><stop offset=".45" stop-color="#ffa3ff" stop-opacity=".35"/><stop offset="1" stop-color="#ffa3ff" stop-opacity="0"/></radialGradient><radialGradient id="pkRH" cx="62%" cy="88%" r="40%"><stop offset="0" stop-color="#fe87fe" stop-opacity=".5"/><stop offset="1" stop-color="#fe87fe" stop-opacity="0"/></radialGradient></defs><circle cx="32" cy="32" r="31" fill="url(#pkOH)"/><circle cx="32" cy="32" r="31" fill="url(#pkSH)"/><circle cx="32" cy="32" r="31" fill="url(#pkRH)"/><ellipse cx="22.5" cy="17.5" rx="13" ry="8.5" fill="url(#pkHH)" transform="rotate(-30 22.5 17.5)"/></svg> Pokédex</button>
+        <button onclick="openPokedex()" title="Toutes les cartes : parcourir, filtrer, cocher sa possession et suivre sa complétion" class="btn-orb rounded-lg px-3 py-1.5 text-xs">Index.Pckt</button>
         <div id="liveClock" class="font-mono text-3xl font-bold tabular-nums text-cyan-300">--:--:--</div>
       </div>
     </header>
@@ -1500,7 +1504,7 @@
       pkdx = { q: "", ext: "", own: "all", rar: new Set(), visible: PKDX_LOT, showStats: false };
       const extOptions = '<option value="">Toutes les extensions</option>' +
         ALL_EXTENSIONS.map(ext => '<option value="' + escapeAttr(ext) + '">' + escapeHtml(isPromo({ extension: ext }) ? ext + " (promos)" : ext) + '</option>').join("");
-      openInfoModal("📚 Pokédex",
+      openInfoModal("Index.Pckt",
         '<div class="space-y-3">' +
           '<div id="cardEditorWarning" class="hidden rounded-lg border border-amber-500/40 bg-amber-950/30 px-3 py-2 text-xs text-amber-300"></div>' +
           '<div id="pkdxSummary" class="space-y-2"></div>' +
@@ -1521,8 +1525,8 @@
           '<div id="pkdxMoreWrap"></div>' +
         '</div>');
       document.getElementById("modalPanel").classList.add("modal-wide");
-      // Logo du Pokédex dans le titre (sphère dégradée rose → violet — SVG inline, aucune image)
-      document.getElementById("modalTitle").innerHTML = '<span class="pkdx-title">' + POKEDEX_LOGO_SVG + '<span>Pokédex</span></span>';
+      // Logo de l'Index.Pckt dans le titre (sphère dégradée rose → violet — SVG inline, aucune image)
+      document.getElementById("modalTitle").innerHTML = '<span class="pkdx-title">' + POKEDEX_LOGO_SVG + '<span>Index.Pckt</span></span>';
 
       if (ALL_CARDS.length === 0) {
         const w = document.getElementById("cardEditorWarning");
