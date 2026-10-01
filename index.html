@@ -68,6 +68,40 @@
       background: linear-gradient(to bottom, rgba(17, 17, 19, 0), rgb(17, 17, 19)); transition: opacity .2s; }
     .meta-scroll-wrap.at-end::after { opacity: 0; }
     .breakdown-wrap { overflow-y: auto; }
+
+    /* ===== Pokédex (01/10/2026) — CSS maison, aucune nouvelle classe Tailwind ===== */
+    #modalPanel.modal-wide { max-width: 64rem; max-height: calc(100vh - 2rem); overflow-y: auto; }
+    .pkdx-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 8px; }
+    .pkdx-tile { display: flex; flex-direction: column; justify-content: space-between; gap: 6px; min-height: 118px; padding: 9px 9px 8px;
+      border-radius: 12px; border: 1px solid #3f3f46; background: rgb(9 9 11 / .6); position: relative; transition: opacity .15s, border-color .15s; }
+    .pkdx-tile.owned { border-color: rgb(34 211 238 / .45); }
+    .pkdx-tile.owned::before { content: ""; position: absolute; left: 10px; right: 10px; top: -1px; height: 2px; border-radius: 2px;
+      background-image: linear-gradient(90deg, var(--brand-cyan), var(--brand-green)); }
+    .pkdx-tile.missing { opacity: .55; border-style: dashed; }
+    .pkdx-name { font-size: 12.5px; font-weight: 600; color: #f4f4f5; line-height: 1.25; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .pkdx-meta { display: flex; justify-content: space-between; align-items: center; gap: 4px; font-size: 10px; color: #71717a; }
+    .pkdx-rar { color: #a1a1aa; letter-spacing: .5px; white-space: nowrap; }
+    .pkdx-rar.star { color: #fcd34d; } .pkdx-rar.crown { color: #fcd34d; }
+    .pkdx-own { width: 100%; min-height: 34px; border-radius: 8px; font-size: 12px; font-weight: 700; border: 1px solid #3f3f46; color: #a1a1aa; background: #18181b; }
+    .pkdx-own.n1, .pkdx-own.n2 { border-color: transparent; color: var(--brand-bg); background-image: linear-gradient(90deg, var(--brand-cyan), var(--brand-green)); }
+    .pkdx-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    .pkdx-chip { min-height: 32px; padding: 4px 10px; border-radius: 9999px; border: 1px solid #3f3f46; font-size: 12px; color: #a1a1aa; background: #09090b; }
+    .pkdx-chip.on { border-color: rgb(34 211 238 / .7); color: #cffafe; background: rgb(8 51 68 / .6); }
+    .pkdx-seg { display: inline-flex; border: 1px solid #3f3f46; border-radius: 10px; overflow: hidden; }
+    .pkdx-seg button { min-height: 34px; padding: 4px 12px; font-size: 12px; color: #a1a1aa; }
+    .pkdx-seg button + button { border-left: 1px solid #3f3f46; }
+    .pkdx-seg button.on { color: #09090b; font-weight: 700; background-image: linear-gradient(90deg, var(--brand-cyan), var(--brand-green)); }
+    .pkdx-field { width: 100%; min-height: 40px; border-radius: 8px; border: 1px solid #3f3f46; background: #09090b; padding: 6px 12px; font-size: 14px; color: #fff; outline: none; }
+    .pkdx-field:focus { border-color: var(--brand-cyan); }
+    .pkdx-stat { display: grid; grid-template-columns: 4.2rem 1fr auto; align-items: center; gap: 8px; font-size: 11px; color: #a1a1aa; }
+    .pkdx-stat .num { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: #d4d4d8; white-space: nowrap; }
+    .gauge-track.gauge-sm { height: 6px; }
+    .pkdx-logo { display: inline-block; vertical-align: -0.2em; flex: none; filter: drop-shadow(0 0 6px rgb(193 80 252 / .5)); }
+    .pkdx-title { display: inline-flex; align-items: center; gap: 10px; }
+    .pkdx-2col { display: grid; grid-template-columns: 1fr; gap: 8px; }
+    @media (min-width: 640px) { .pkdx-2col { grid-template-columns: 1fr 1fr; column-gap: 20px; } }
+    .pkdx-more { width: 100%; min-height: 40px; margin-top: 10px; border-radius: 10px; border: 1px solid #3f3f46; font-size: 12px; font-weight: 600; color: var(--brand-cyan); }
+    .pkdx-more:hover, .pkdx-chip:hover, .pkdx-seg button:hover { filter: brightness(1.15); }
   </style>
   <!-- CSS Tailwind v3.4.17 COMPILÉ ET INTÉGRÉ (29/09/2026) — remplace le Play CDN (cdn.tailwindcss.com).
        Généré par le moteur Tailwind officiel (Play CDN 3.4.17, même configuration que l'ancien tailwind.config inline)
@@ -107,7 +141,7 @@
         </div>
       </div>
       <div class="flex items-center gap-4">
-        <button onclick="openCollectionManager()" title="Gérer votre possession de cartes, extension par extension, sans passer par un deck" class="rounded-lg border border-emerald-500/40 bg-emerald-950/30 px-3 py-1.5 text-xs font-bold text-emerald-300 transition hover:bg-emerald-900/40">📚 Ma Collection</button>
+        <button onclick="openPokedex()" title="Toutes les cartes : parcourir, filtrer, cocher sa possession et suivre sa complétion" class="rounded-lg border border-emerald-500/40 bg-emerald-950/30 px-3 py-1.5 text-xs font-bold text-emerald-300 transition hover:bg-emerald-900/40"><svg class="pkdx-logo" width="22" height="22" viewBox="0 0 64 64" aria-hidden="true"><defs><radialGradient id="pkOH" cx="34%" cy="28%" r="78%" fx="30%" fy="22%"><stop offset="0" stop-color="#ffa3ff"/><stop offset=".22" stop-color="#fe87fe"/><stop offset=".42" stop-color="#e86cfe"/><stop offset=".6" stop-color="#db61ff"/><stop offset=".78" stop-color="#c150fc"/><stop offset="1" stop-color="#9b37fb"/></radialGradient><radialGradient id="pkSH" cx="38%" cy="34%" r="70%"><stop offset=".6" stop-color="#791bff" stop-opacity="0"/><stop offset="1" stop-color="#791bff" stop-opacity=".45"/></radialGradient><radialGradient id="pkHH"><stop offset="0" stop-color="#fff" stop-opacity=".75"/><stop offset=".45" stop-color="#ffa3ff" stop-opacity=".35"/><stop offset="1" stop-color="#ffa3ff" stop-opacity="0"/></radialGradient><radialGradient id="pkRH" cx="62%" cy="88%" r="40%"><stop offset="0" stop-color="#fe87fe" stop-opacity=".5"/><stop offset="1" stop-color="#fe87fe" stop-opacity="0"/></radialGradient></defs><circle cx="32" cy="32" r="31" fill="url(#pkOH)"/><circle cx="32" cy="32" r="31" fill="url(#pkSH)"/><circle cx="32" cy="32" r="31" fill="url(#pkRH)"/><ellipse cx="22.5" cy="17.5" rx="13" ry="8.5" fill="url(#pkHH)" transform="rotate(-30 22.5 17.5)"/></svg> Pokédex</button>
         <div id="liveClock" class="font-mono text-3xl font-bold tabular-nums text-cyan-300">--:--:--</div>
       </div>
     </header>
@@ -323,7 +357,7 @@
 
   <!-- GENERIC MODAL -->
   <div id="modal" class="fixed inset-0 z-40 hidden items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
-    <div class="w-full max-w-2xl rounded-2xl border border-zinc-700 bg-zinc-900 p-6 shadow-2xl">
+    <div id="modalPanel" class="w-full max-w-2xl rounded-2xl border border-zinc-700 bg-zinc-900 p-6 shadow-2xl">
       <h3 id="modalTitle" class="text-lg font-bold text-white"></h3>
       <div id="modalBody" class="mt-4"></div>
       <div id="modalError" class="mt-3 hidden rounded-lg border border-red-500/40 bg-red-950/40 px-3 py-2 text-sm text-red-300"></div>
@@ -692,7 +726,11 @@
       if (raw && typeof raw === "object") {
         Object.keys(raw).forEach(id => {
           const n = raw[id];
-          if (CARD_BY_ID.hasOwnProperty(id) && (n === 1 || n === 2)) safe[id] = n;
+          // Correctif 01/10/2026 : on ne filtre plus sur CARD_BY_ID. Au chargement, le référentiel peut n'être
+          // que le petit repli embarqué (premier lancement hors-ligne, cache vidé) : filtrer ici supprimait alors
+          // toutes les autres cartes cochées, et la première bascule de possession réécrivait la collection
+          // amputée. Un id inconnu du référentiel courant est conservé, simplement ignoré à l'affichage.
+          if (typeof id === "string" && /^[A-Za-z0-9-]{1,20}$/.test(id) && (n === 1 || n === 2)) safe[id] = n;
         });
       }
       return safe;
@@ -1411,52 +1449,192 @@
       renderCESelected();
     }
 
-    // ---------- GESTION DE LA COLLECTION (indépendante du deckbuilding) ----------
-    // Demandé par Roadmap suite au test réel de Nicolas : cocher la possession de ses cartes
-    // extension par extension ne devrait pas obliger à ouvrir un deck puis "Éditer les cartes".
-    // Réutilise tel quel le composant recherche/filtre/toggle 0-1-2 déjà construit pour le
-    // deckbuilding (renderCEResults) — seule différence : cardEditorDraft reste à null, ce qui fait
-    // disparaître le bouton "+" (ajouter au deck) et le panneau "Deck en cours d'édition", puisqu'il
-    // n'y a ici aucun deck concerné.
-    function openCollectionManager() {
-      cardEditorDraft = null; // pas de deck : mode collection pure
+    // ---------- POKÉDEX (01/10/2026) — remplace et fusionne l'ancien écran "Ma Collection" ----------
+    // Un seul endroit pour parcourir les ~3 879 cartes et cocher sa possession. La collection reste
+    // stockée sous la même clé LocalStorage (COLLECTION_KEY) via getOwnedCount()/cycleOwned() : rien de
+    // ce que l'utilisateur avait déjà coché n'est perdu. L'éditeur de cartes des decks (openCardEditor +
+    // renderCEResults) n'est PAS touché : il garde son affichage en liste et toutes ses règles.
+    const PKDX_LOT = 60;                 // tuiles par lot ("Afficher plus") — multiple de 2, 3, 4, 5 et 6 colonnes
+    const PKDX_RARITIES = [              // clés de filtre de rareté, dans l'ordre d'affichage
+      { key: "◇1", label: "◇" }, { key: "◇2", label: "◇◇" }, { key: "◇3", label: "◇◇◇" }, { key: "◇4", label: "◇◇◇◇" },
+      { key: "★1", label: "★" }, { key: "★2", label: "★★" }, { key: "★3", label: "★★★" },
+      { key: "☆1", label: "☆" }, { key: "☆2", label: "☆☆" }, { key: "couronne", label: "♛" }
+    ];
+    const POKEDEX_LOGO_SVG = '<svg class="pkdx-logo" width="44" height="44" viewBox="0 0 64 64" aria-hidden="true"><defs><radialGradient id="pkOM" cx="34%" cy="28%" r="78%" fx="30%" fy="22%"><stop offset="0" stop-color="#ffa3ff"/><stop offset=".22" stop-color="#fe87fe"/><stop offset=".42" stop-color="#e86cfe"/><stop offset=".6" stop-color="#db61ff"/><stop offset=".78" stop-color="#c150fc"/><stop offset="1" stop-color="#9b37fb"/></radialGradient><radialGradient id="pkSM" cx="38%" cy="34%" r="70%"><stop offset=".6" stop-color="#791bff" stop-opacity="0"/><stop offset="1" stop-color="#791bff" stop-opacity=".45"/></radialGradient><radialGradient id="pkHM"><stop offset="0" stop-color="#fff" stop-opacity=".75"/><stop offset=".45" stop-color="#ffa3ff" stop-opacity=".35"/><stop offset="1" stop-color="#ffa3ff" stop-opacity="0"/></radialGradient><radialGradient id="pkRM" cx="62%" cy="88%" r="40%"><stop offset="0" stop-color="#fe87fe" stop-opacity=".5"/><stop offset="1" stop-color="#fe87fe" stop-opacity="0"/></radialGradient></defs><circle cx="32" cy="32" r="31" fill="url(#pkOM)"/><circle cx="32" cy="32" r="31" fill="url(#pkSM)"/><circle cx="32" cy="32" r="31" fill="url(#pkRM)"/><ellipse cx="22.5" cy="17.5" rx="13" ry="8.5" fill="url(#pkHM)" transform="rotate(-30 22.5 17.5)"/></svg>';
+    let pkdx = null; // état de l'écran (filtres, lot visible) — remis à zéro à chaque ouverture
 
-      const extOptions = '<option value="">Toutes extensions</option>' +
-        ALL_EXTENSIONS.map(ext => '<option value="' + escapeAttr(ext) + '">' + escapeHtml(ext.indexOf("P-") === 0 ? ext + " (promos)" : ext) + '</option>').join("");
+    // Recherche insensible aux accents et aux majuscules ("evoli" trouve "Évoli")
+    function normalizeSearch(str) {
+      return String(str || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
+    }
+    let pkdxNormCache = null, pkdxNormCacheFor = null;
+    function pkdxNormName(card) {
+      if (pkdxNormCacheFor !== ALL_CARDS) { pkdxNormCache = new Map(); pkdxNormCacheFor = ALL_CARDS; }
+      let n = pkdxNormCache.get(card.id);
+      if (n === undefined) { n = normalizeSearch(card.nom); pkdxNormCache.set(card.id, n); }
+      return n;
+    }
+    function isPromo(card) { return String(card.extension).indexOf("P-") === 0; }
+    // Clé de rareté : "◇1".."◇4" (selon losanges), "★1".."★3", "☆1"/"☆2", "couronne" ;
+    // "◇?" pour un ◇ sans nombre de losanges (cas des promos, qui n'en impriment pas).
+    function rarityKey(card) {
+      const r = card.rarete || "";
+      if (r === "◇") return card.losanges ? "◇" + card.losanges : "◇?";
+      return r || "?";
+    }
+    function raritySymbols(card) {
+      const k = rarityKey(card);
+      if (k === "couronne") return { txt: "♛", cls: "crown" };
+      if (k === "◇?") return { txt: "◇", cls: "" };
+      const m = /^([◇★☆])(\d)$/.exec(k);
+      if (m) return { txt: m[1].repeat(Number(m[2])), cls: m[1] === "◇" ? "" : "star" };
+      return { txt: k === "?" ? "—" : k, cls: "" };
+    }
+    function rarityLabel(key) {
+      const r = PKDX_RARITIES.find(x => x.key === key);
+      return r ? r.label : (key === "◇?" ? "◇ promo" : key);
+    }
 
-      openModal("Ma Collection",
+    function openPokedex() {
+      cardEditorDraft = null; // pas de deck concerné
+      pkdx = { q: "", ext: "", own: "all", rar: new Set(), visible: PKDX_LOT, showStats: false };
+      const extOptions = '<option value="">Toutes les extensions</option>' +
+        ALL_EXTENSIONS.map(ext => '<option value="' + escapeAttr(ext) + '">' + escapeHtml(isPromo({ extension: ext }) ? ext + " (promos)" : ext) + '</option>').join("");
+      openInfoModal("📚 Pokédex",
         '<div class="space-y-3">' +
           '<div id="cardEditorWarning" class="hidden rounded-lg border border-amber-500/40 bg-amber-950/30 px-3 py-2 text-xs text-amber-300"></div>' +
-          '<p class="text-xs text-zinc-500">Parcourez vos cartes par nom ou par extension et mettez à jour votre possession, indépendamment de vos decks.</p>' +
+          '<div id="pkdxSummary" class="space-y-2"></div>' +
+          '<button type="button" id="pkdxStatsToggle" onclick="pkdxToggleStats()" class="pkdx-chip"></button>' +
+          '<div id="pkdxStats" class="hidden space-y-3 rounded-xl border border-zinc-800 bg-zinc-950/60 p-3"></div>' +
           '<div class="grid grid-cols-1 gap-2 sm:grid-cols-3">' +
-            '<input id="ceSearch" type="text" placeholder="Rechercher une carte par nom..." class="rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-white outline-none focus:border-emerald-500 sm:col-span-2" />' +
-            '<select id="ceExtension" class="rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-white outline-none focus:border-emerald-500">' + extOptions + '</select>' +
+            '<input id="pkdxSearch" type="search" placeholder="Rechercher un nom (ex. evoli)…" class="pkdx-field sm:col-span-2" />' +
+            '<select id="pkdxExt" class="pkdx-field">' + extOptions + '</select>' +
           '</div>' +
-          '<label class="flex items-center gap-2 text-xs text-zinc-400">' +
-            '<input id="ceOwnedOnly" type="checkbox" class="rounded border-zinc-700 bg-zinc-950 text-emerald-500" />' +
-            'Cartes possédées uniquement' +
-          '</label>' +
-          '<div>' +
-            '<div class="mb-1 text-xs text-zinc-500">Résultats — cliquez le badge pour faire passer la possession à 0 / 1 / 2</div>' +
-            '<div id="ceResults" class="max-h-72 overflow-y-auto rounded-lg border border-zinc-800 divide-y divide-zinc-800"></div>' +
+          '<div class="pkdx-seg" role="group" aria-label="Possession">' +
+            '<button type="button" data-own="all" onclick="pkdxSetOwn(\'all\')">Toutes</button>' +
+            '<button type="button" data-own="owned" onclick="pkdxSetOwn(\'owned\')">Possédées</button>' +
+            '<button type="button" data-own="missing" onclick="pkdxSetOwn(\'missing\')">Manquantes</button>' +
           '</div>' +
-        '</div>',
-        () => true // rien à valider ici (pas de deck) : "Confirmer" ferme simplement la fenêtre, comme "Annuler"
-      );
+          '<div id="pkdxRarities" class="pkdx-chips" aria-label="Rareté"></div>' +
+          '<div id="pkdxCount" class="text-xs text-zinc-500"></div>' +
+          '<div id="pkdxGrid" class="pkdx-grid"></div>' +
+          '<div id="pkdxMoreWrap"></div>' +
+        '</div>');
+      document.getElementById("modalPanel").classList.add("modal-wide");
+      // Logo du Pokédex dans le titre (sphère dégradée rose → violet — SVG inline, aucune image)
+      document.getElementById("modalTitle").innerHTML = '<span class="pkdx-title">' + POKEDEX_LOGO_SVG + '<span>Pokédex</span></span>';
 
       if (ALL_CARDS.length === 0) {
         const w = document.getElementById("cardEditorWarning");
-        w.textContent = "⚠ Référentiel de cartes vide (0 carte chargée) — cas normalement impossible depuis le passage au chargement dynamique. Vérifiez votre connexion et rouvrez l'appli.";
+        w.textContent = "⚠ Référentiel de cartes vide (0 carte chargée) — vérifiez votre connexion et rouvrez l'appli.";
         w.classList.remove("hidden");
       }
+      document.getElementById("pkdxSearch").addEventListener("input", e => { pkdx.q = e.target.value; pkdxRefresh(); });
+      document.getElementById("pkdxExt").addEventListener("change", e => { pkdx.ext = e.target.value; pkdxRefresh(); });
+      pkdxRefresh();
+    }
+    // Compatibilité : l'ancien nom reste utilisable (il ouvre le Pokédex)
+    function openCollectionManager() { openPokedex(); }
 
-      document.getElementById("ceSearch").addEventListener("input", renderCEResults);
-      document.getElementById("ceExtension").addEventListener("change", renderCEResults);
-      document.getElementById("ceOwnedOnly").addEventListener("change", renderCEResults);
-      // Réinitialise la pagination des résultats à chaque ouverture (nouvelle session de recherche).
-      ceVisibleCount = 50;
-      ceLastFilterKey = null;
-      renderCEResults();
+    function pkdxSetOwn(v) { pkdx.own = v; pkdxRefresh(); }
+    function pkdxToggleRarity(key) { if (pkdx.rar.has(key)) pkdx.rar.delete(key); else pkdx.rar.add(key); pkdxRefresh(); }
+    function pkdxToggleStats() { pkdx.showStats = !pkdx.showStats; pkdxRenderStats(); }
+    function pkdxShowMore() { pkdx.visible += PKDX_LOT; pkdxRenderGrid(); }
+
+    // Filtres combinés. withOwnership=false sert aux stats "par rareté dans la sélection en cours"
+    // (sinon le filtre "Possédées" donnerait toujours 100 %).
+    function pkdxFilter(withOwnership) {
+      const q = normalizeSearch(pkdx.q);
+      return ALL_CARDS.filter(c => {
+        if (q && pkdxNormName(c).indexOf(q) === -1) return false;
+        if (pkdx.ext && c.extension !== pkdx.ext) return false;
+        if (pkdx.rar.size && !pkdx.rar.has(rarityKey(c))) return false;
+        if (withOwnership !== false) {
+          const owned = getOwnedCount(c.id) >= 1;
+          if (pkdx.own === "owned" && !owned) return false;
+          if (pkdx.own === "missing" && owned) return false;
+        }
+        return true;
+      });
+    }
+    // Compteurs de complétion : une carte est possédée dès 1 exemplaire ; promos comptées à part.
+    function pkdxCount(cards) {
+      let owned = 0;
+      cards.forEach(c => { if (getOwnedCount(c.id) >= 1) owned++; });
+      return { owned: owned, total: cards.length };
+    }
+    function pkdxGauge(label, cnt, small) {
+      const pct = cnt.total ? Math.round(cnt.owned * 100 / cnt.total) : 0;
+      return '<div class="pkdx-stat"><span class="truncate">' + escapeHtml(label) + '</span>' +
+        '<div class="gauge-track' + (small ? ' gauge-sm' : '') + '"><div class="gauge-fill" style="width:' + pct + '%"></div></div>' +
+        '<span class="num">' + cnt.owned + ' / ' + cnt.total + ' · ' + pct + '%</span></div>';
+    }
+
+    function pkdxRefresh() {
+      pkdx.visible = PKDX_LOT; // nouveau filtre = on repart du premier lot
+      document.querySelectorAll(".pkdx-seg button").forEach(b => b.classList.toggle("on", b.getAttribute("data-own") === pkdx.own));
+      document.getElementById("pkdxRarities").innerHTML = PKDX_RARITIES.map(r =>
+        '<button type="button" class="pkdx-chip' + (pkdx.rar.has(r.key) ? " on" : "") + '" aria-pressed="' + pkdx.rar.has(r.key) + '" onclick="pkdxToggleRarity(\'' + r.key + '\')">' + r.label + '</button>').join("");
+      pkdxRenderSummary();
+      pkdxRenderStats();
+      pkdxRenderGrid();
+    }
+    function pkdxRenderSummary() {
+      const el = document.getElementById("pkdxSummary");
+      if (!el) return;
+      el.innerHTML = pkdxGauge("Cartes", pkdxCount(ALL_CARDS.filter(c => !isPromo(c))), false) +
+                     pkdxGauge("Promos", pkdxCount(ALL_CARDS.filter(isPromo)), false);
+      document.getElementById("pkdxStatsToggle").textContent = pkdx.showStats ? "📊 Masquer les statistiques" : "📊 Statistiques détaillées";
+    }
+    function pkdxRenderStats() {
+      const el = document.getElementById("pkdxStats");
+      if (!el) return;
+      document.getElementById("pkdxStatsToggle").textContent = pkdx.showStats ? "📊 Masquer les statistiques" : "📊 Statistiques détaillées";
+      el.classList.toggle("hidden", !pkdx.showStats);
+      if (!pkdx.showStats) return;
+      const byExt = ALL_EXTENSIONS.map(ext => pkdxGauge(ext, pkdxCount(ALL_CARDS.filter(c => c.extension === ext)), true)).join("");
+      const sel = pkdxFilter(false);
+      const keys = PKDX_RARITIES.map(r => r.key).concat(["◇?"]);
+      const byRar = keys.map(k => {
+        const cards = sel.filter(c => rarityKey(c) === k);
+        return cards.length ? pkdxGauge(rarityLabel(k), pkdxCount(cards), true) : "";
+      }).join("");
+      el.innerHTML =
+        '<div><div class="mb-2 text-xs font-semibold uppercase tracking-wider text-zinc-400">Par extension</div><div class="pkdx-2col">' + byExt + '</div></div>' +
+        '<div><div class="mb-2 text-xs font-semibold uppercase tracking-wider text-zinc-400">Par rareté — sélection en cours (' + sel.length + ' cartes)</div>' +
+        '<div class="pkdx-2col">' + (byRar || '<p class="text-xs text-zinc-600">Aucune carte dans la sélection.</p>') + '</div></div>';
+    }
+    function pkdxTileHtml(c) {
+      const n = getOwnedCount(c.id);
+      const rs = raritySymbols(c);
+      const ownLabel = n === 0 ? "Non possédée" : "×" + n;
+      return '<div class="pkdx-tile ' + (n ? "owned" : "missing") + '" data-id="' + escapeAttr(c.id) + '">' +
+        '<div class="pkdx-name">' + escapeHtml(c.nom) + '</div>' +
+        '<div class="pkdx-meta"><span>' + escapeHtml(c.id) + '</span><span class="pkdx-rar ' + rs.cls + '">' + escapeHtml(rs.txt) + '</span></div>' +
+        '<button type="button" class="pkdx-own n' + n + '" title="Possession : 0 → 1 → 2 → 0" onclick="' + "pkdxCycle('" + jsAttrEscape(c.id) + "')" + '">' + ownLabel + '</button>' +
+      '</div>';
+    }
+    function pkdxRenderGrid() {
+      const grid = document.getElementById("pkdxGrid");
+      if (!grid) return;
+      const all = pkdxFilter(true);
+      const shown = all.slice(0, pkdx.visible);
+      document.getElementById("pkdxCount").textContent = all.length + " carte" + (all.length > 1 ? "s" : "") + (shown.length < all.length ? " — " + shown.length + " affichées" : "");
+      grid.innerHTML = shown.length ? shown.map(pkdxTileHtml).join("") : '<p class="text-xs text-zinc-600">Aucune carte ne correspond à ces filtres.</p>';
+      const rest = all.length - shown.length;
+      document.getElementById("pkdxMoreWrap").innerHTML = rest > 0
+        ? '<button type="button" class="pkdx-more" onclick="pkdxShowMore()">Afficher plus (' + Math.min(rest, PKDX_LOT) + ' sur ' + rest + ' restante' + (rest > 1 ? "s" : "") + ')</button>'
+        : "";
+    }
+    // Bascule 0 → 1 → 2 → 0 sur la tuile : on ne remet à jour que la tuile et les compteurs
+    // (la grille n'est pas refiltrée, pour qu'une carte ne "saute" pas sous le doigt en mode "Manquantes").
+    function pkdxCycle(id) {
+      cycleOwned(id);
+      const card = CARD_BY_ID[id];
+      const tile = document.querySelector('.pkdx-tile[data-id="' + (window.CSS && CSS.escape ? CSS.escape(id) : id) + '"]');
+      if (card && tile) tile.outerHTML = pkdxTileHtml(card);
+      pkdxRenderSummary();
+      pkdxRenderStats();
     }
 
     // ---------- PAGINATION DES RÉSULTATS DE L'ÉDITEUR DE CARTES ----------
@@ -1613,6 +1791,7 @@
       // Libellés par défaut (une modale d'information, voir openInfoModal, les change temporairement)
       document.getElementById("modalConfirm").textContent = "Confirmer";
       document.getElementById("modalCancel").classList.remove("hidden");
+      document.getElementById("modalPanel").classList.remove("modal-wide"); // seul le Pokédex élargit la fenêtre
       modalCallback = onConfirm;
       const m = document.getElementById("modal");
       m.classList.remove("hidden");
