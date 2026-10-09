@@ -12,7 +12,7 @@
 {"code":"A4a","nom":"Source Secrète","serie":"A","base":71,"total":105},
 {"code":"A4b","nom":"Booster de Luxe ex","serie":"A","base":353,"total":379},
 {"code":"B1","nom":"Méga-Ascension","serie":"B","base":226,"total":331},
-{"code":"P-B","nom":"Promo-B","serie":"Promo","base":83,"total":94},
+{"code":"P-B","nom":"Promo-B","serie":"Promo","base":90,"total":103},
 {"code":"B1a","nom":"Embrasement Écarlate","serie":"B","base":69,"total":103},
 {"code":"B2","nom":"Parade Onirique","serie":"B","base":155,"total":234},
 {"code":"B2a","nom":"Merveilles de Paldea","serie":"B","base":93,"total":131},
@@ -21,5 +21,6 @@
 {"code":"B3a","nom":"Propulsion Paradoxe","serie":"B","base":74,"total":109},
 {"code":"B3b","nom":"Jours Heureux","serie":"B","base":69,"total":106},
 {"code":"B4","nom":"Domination Céleste","serie":"B","base":155,"total":233},
-{"code":"B4a","nom":"L'Ambition de la Team Rocket","serie":"B","base":72,"total":110}
+{"code":"B4a","nom":"L'Ambition de la Team Rocket","serie":"B","base":72,"total":110},
+{"code":"B4b","nom":"Booster de Luxe Méga","serie":"B","base":402,"total":429}
 ]

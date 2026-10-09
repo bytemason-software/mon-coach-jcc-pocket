@@ -209,5 +209,14 @@
 {"id":"P-B-091","extension":"P-B","numero":"091","nom":"Qulbutoké de la Team Rocket","rarete":"◇"},
 {"id":"P-B-092","extension":"P-B","numero":"092","nom":"Ossatueur","rarete":"◇"},
 {"id":"P-B-093","extension":"P-B","numero":"093","nom":"Feunnec","rarete":"◇"},
-{"id":"P-B-094","extension":"P-B","numero":"094","nom":"Mistigrix","rarete":"◇"}
+{"id":"P-B-094","extension":"P-B","numero":"094","nom":"Mistigrix","rarete":"◇"},
+{"id":"P-B-095","extension":"P-B","numero":"095","nom":"Darkrai","rarete":"★1"},
+{"id":"P-B-096","extension":"P-B","numero":"096","nom":"Hexadron","rarete":"◇"},
+{"id":"P-B-097","extension":"P-B","numero":"097","nom":"Griknot","rarete":"◇"},
+{"id":"P-B-098","extension":"P-B","numero":"098","nom":"Carmache","rarete":"◇"},
+{"id":"P-B-099","extension":"P-B","numero":"099","nom":"Méga-Carchacrok-ex","rarete":"◇"},
+{"id":"P-B-100","extension":"P-B","numero":"100","nom":"Delcatty","rarete":"◇"},
+{"id":"P-B-101","extension":"P-B","numero":"101","nom":"Salamèche","rarete":"◇"},
+{"id":"P-B-102","extension":"P-B","numero":"102","nom":"Draïeul","rarete":"◇"},
+{"id":"P-B-103","extension":"P-B","numero":"103","nom":"Pikachu-ex","rarete":"★3"}
 ]
