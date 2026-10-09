@@ -107,6 +107,29 @@
     @media (min-width: 640px) { .pkdx-2col { grid-template-columns: 1fr 1fr; column-gap: 20px; } }
     .pkdx-more { width: 100%; min-height: 40px; margin-top: 10px; border-radius: 10px; border: 1px solid #3f3f46; font-size: 12px; font-weight: 600; color: var(--brand-cyan); }
     .pkdx-more:hover, .pkdx-chip:hover, .pkdx-seg button:hover { filter: brightness(1.15); }
+    /* ===== Lot UX 1, dépôt A (09/10/2026) — CSS maison, aucune nouvelle classe Tailwind ===== */
+    /* #3 : symboles plus grands ; ★ doré, ☆ violet clair (contraste ≥ 4,5:1 sur le fond des tuiles) */
+    .pkdx-rar { font-size: 13px; font-weight: 700; letter-spacing: 1px; }
+    .pkdx-rar.star, .pkdx-chip.rar-star { color: #fbbf24; }
+    .pkdx-rar.shiny, .pkdx-chip.rar-shiny { color: #c4b5fd; }
+    .pkdx-rar.crown, .pkdx-chip.rar-crown { color: #fcd34d; }
+    .pkdx-chips .pkdx-chip { font-size: 14px; }
+    /* Carte manquante : on atténue le nom, l'id et le bouton, mais plus les symboles de rareté (lisibles partout) */
+    .pkdx-tile.missing { opacity: 1; }
+    .pkdx-tile.missing > .pkdx-name, .pkdx-tile.missing > .pkdx-own, .pkdx-tile.missing .pkdx-meta > span:first-child { opacity: .55; }
+    /* #2 : filtre par série */
+    .pkdx-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+    .pkdx-lbl { font-size: 12px; color: #a1a1aa; }
+    /* #6 : stats par extension, avec barre « Cartes de base » */
+    .pkdx-serie-title { margin: 4px 0 6px; font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: #a1a1aa; }
+    .pkdx-ext { padding: 8px 10px; border-radius: 10px; border: 1px solid #27272a; background: rgb(9 9 11 / .5); }
+    .pkdx-ext-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; font-size: 12px; font-weight: 600; color: #e4e4e7; }
+    .pkdx-ext-head .t { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .pkdx-ext .pkdx-stat { grid-template-columns: 6.6rem 1fr auto; }
+    .pkdx-ext .pkdx-stat + .pkdx-stat { margin-top: 4px; }
+    .pkdx-badge { flex: none; padding: 2px 8px; border-radius: 9999px; font-size: 11px; font-weight: 700; white-space: nowrap; }
+    .pkdx-badge.done { color: #09090b; background-image: linear-gradient(90deg, var(--brand-cyan), var(--brand-green)); }
+    .pkdx-badge.near { color: #fcd34d; border: 1px solid rgb(245 158 11 / .5); }
   </style>
   <!-- CSS Tailwind v3.4.17 COMPILÉ ET INTÉGRÉ (29/09/2026) — remplace le Play CDN (cdn.tailwindcss.com).
        Généré par le moteur Tailwind officiel (Play CDN 3.4.17, même configuration que l'ancien tailwind.config inline)
@@ -155,7 +178,7 @@
     <div id="updateBanner" class="mb-4 hidden rounded-xl border border-cyan-500/40 bg-cyan-950/30 p-4 text-sm text-cyan-200"></div>
 
     <!-- FRAÎCHEUR DU RÉFÉRENTIEL DE CARTES (hidden by default, shown by JS tant que la source n'est pas "remote") -->
-    <div id="referentielWarning" class="mb-4 hidden rounded-xl border border-amber-500/40 bg-amber-950/30 p-4 text-sm text-amber-300"></div>
+    <div id="referentielWarning" role="status" class="mb-4 hidden rounded-xl border border-amber-500/40 bg-amber-950/30 p-4 text-sm text-amber-300"></div>
 
     <div class="grid grid-cols-1 gap-5 lg:grid-cols-3">
 
@@ -265,7 +288,7 @@
         <!-- Indicateur de fraîcheur : masqué quand la liste vient bien d'être récupérée en ligne,
              affiché (avec la date de dernière synchronisation connue) quand l'appli tourne sur le
              cache local ou, pire, sur la petite liste de repli embarquée — voir renderMetaFreshnessBadge(). -->
-        <p id="metaFreshness" class="mb-3 hidden rounded-lg border border-amber-500/40 bg-amber-950/30 px-3 py-2 text-xs text-amber-300"></p>
+        <p id="metaFreshness" role="status" class="mb-3 hidden rounded-lg border border-amber-500/40 bg-amber-950/30 px-3 py-2 text-xs text-amber-300"></p>
         <!-- Liste scrollable (hauteur commune) + fondu en bas tant qu'il reste du contenu à faire défiler -->
         <div id="metaScrollWrap" class="meta-scroll-wrap panel-fill">
           <ul id="metaTips" class="meta-scroll space-y-2 text-sm"></ul>
@@ -488,6 +511,70 @@
 
     let cardsState = { source: "default", fetchedAt: null };
 
+    // ---------- NOMS DES EXTENSIONS (Lot UX 1, #2, 09/10/2026) ----------
+    // extensions.json, même hébergement que les autres données : [{code, nom, serie, base, total}, ...] dans
+    // l'ordre de sortie. Rien n'est codé en dur (ni le nombre d'extensions, ni la liste des séries) : une
+    // nouvelle extension ou une nouvelle série fonctionne sans toucher au code. Cache LocalStorage, et si le
+    // fichier est absent ou invalide : repli silencieux sur les codes seuls (affichage d'avant ce lot).
+    let EXTENSIONS_REMOTE_URL = "https://bytemason-software.github.io/mon-coach-jcc-pocket/extensions.json";
+    const EXTENSIONS_CACHE_KEY = "moncoach_jcc_pocket_v2_extensions_cache"; // cache seulement, jamais dans la sauvegarde
+    const EXTENSIONS_FETCH_TIMEOUT_MS = 5000;
+    let EXT_LIST = [];   // entrées valides du fichier, dans son ordre
+    let EXT_INFO = {};   // code -> entrée
+    function isValidExtensionsArray(data) {
+      return Array.isArray(data) && data.length > 0
+        && data.every(e => e && typeof e === "object" && typeof e.code === "string" && e.code.trim() !== ""
+          && typeof e.nom === "string" && e.nom.trim() !== "" && typeof e.serie === "string" && e.serie.trim() !== "");
+    }
+    function setExtensions(list) {
+      EXT_LIST = Array.isArray(list) ? list : [];
+      EXT_INFO = {};
+      EXT_LIST.forEach(e => { if (!EXT_INFO[e.code]) EXT_INFO[e.code] = e; });
+    }
+    function loadExtensionsFromCache() {
+      const cached = loadJsonCache(EXTENSIONS_CACHE_KEY, isValidExtensionsArray);
+      setExtensions(cached ? cached.data : []);
+    }
+    function refreshExtensionsFromRemote() {
+      return fetchJsonWithTimeout(EXTENSIONS_REMOTE_URL, EXTENSIONS_FETCH_TIMEOUT_MS).then(json => {
+        if (!isValidExtensionsArray(json)) return; // absent ou invalide : on garde le cache ou les codes seuls, sans erreur
+        saveJsonCache(EXTENSIONS_CACHE_KEY, json);
+        setExtensions(json);
+        if (pkdx && document.getElementById("pkdxExt")) pkdxRebuildExtControls();
+      });
+    }
+    // « A1 · Puissance Génétique » ; sans données : le libellé d'avant ce lot (code, « (promos) » pour les promos)
+    function extLabel(code) {
+      const info = EXT_INFO[code];
+      if (info) return code + " · " + info.nom;
+      return String(code).indexOf("P-") === 0 ? code + " (promos)" : code;
+    }
+    function extSerie(code) { const info = EXT_INFO[code]; return info ? info.serie : ""; }
+    // Extensions qui ont des cartes : ordre du fichier, puis celles qu'il ne connaît pas encore (ordre alphabétique)
+    function orderedExtensions() {
+      const out = [];
+      const present = new Set(ALL_EXTENSIONS);
+      EXT_LIST.forEach(e => { if (present.has(e.code) && out.indexOf(e.code) === -1) out.push(e.code); });
+      ALL_EXTENSIONS.forEach(c => { if (out.indexOf(c) === -1) out.push(c); });
+      return out;
+    }
+    // Séries présentes dans extensions.json (pour les extensions qui ont des cartes), triées par nom
+    function seriesList() {
+      return [...new Set(orderedExtensions().map(extSerie).filter(Boolean))].sort((a, b) => a.localeCompare(b, "fr"));
+    }
+    // Cartes de base (#6) d'une extension normale : numéros 001 à `base` (vérifié par programme le 09/10/2026 :
+    // ce sont exactement les cartes à losanges). Promos : pas de barre de base (en attente de validation).
+    function extBase(code) {
+      const info = EXT_INFO[code];
+      if (!info || String(code).indexOf("P-") === 0) return 0;
+      return (Number.isInteger(info.base) && info.base > 0) ? info.base : 0;
+    }
+    function isBaseCard(card, base) {
+      const n = parseInt(card.numero, 10);
+      return base > 0 && !isNaN(n) && n >= 1 && n <= base;
+    }
+    loadExtensionsFromCache();
+
     // Étape 2/3 du repli en cascade, synchrone (pas de réseau) : appelée immédiatement ici (avant même
     // l'état des decks plus bas, qui a besoin de CARD_BY_ID) pour que l'appli s'affiche sans attendre.
     function loadCardsFromCacheOrDefault() {
@@ -521,7 +608,8 @@
     // l'appelle "en tir et oublie").
     function refreshCardsFromRemote() {
       return fetchRemoteCards().then(remote => {
-        if (!remote) return; // rien de mieux à afficher : on garde le cache/repli déjà affiché
+        cardsSyncing = false; // Lot UX 1 (#7) : la tentative est terminée, réussie ou non
+        if (!remote) { renderCardsFreshnessBanner(); return; } // échec réel : on garde le cache/repli et on l'indique
         saveJsonCache(CARDS_CACHE_KEY, remote);
         cardsState = { source: "remote", fetchedAt: Date.now() };
         rebuildCardIndex(remote.cartes, remote.promos);
@@ -535,15 +623,27 @@
     // Nicolas (ou un ami) sache que des cartes récentes peuvent manquer plutôt que de croire l'appli
     // complète. Réutilise l'id "referentielWarning" (même bandeau que l'ancien avertissement "fichiers
     // introuvables", dont le rôle est maintenant repris par ce mécanisme de fraîcheur).
+    // Lot UX 1 (#7, 09/10/2026) : au lancement, l'appli affichait « Référentiel hors-ligne » alors que la
+    // synchronisation réussissait juste après. Pendant la tentative (cardsSyncing), on montre un message
+    // neutre et discret ; l'avertissement n'apparaît qu'après un échec réel.
+    let cardsSyncing = false;
+    const SYNC_NOTE_TEXT = "Synchronisation…";
+    const CARDS_WARN_CLASS = "mb-4 rounded-xl border border-amber-500/40 bg-amber-950/30 p-4 text-sm text-amber-300";
+    const CARDS_SYNC_CLASS = "mb-4 rounded-lg border border-zinc-800 bg-zinc-900/50 px-3 py-2 text-xs text-zinc-400";
     function renderCardsFreshnessBanner() {
       const banner = document.getElementById("referentielWarning");
       if (!banner) return;
       if (cardsState.source === "remote") {
-        banner.classList.add("hidden");
+        banner.className = CARDS_WARN_CLASS + " hidden";
         banner.textContent = "";
         return;
       }
-      banner.classList.remove("hidden");
+      if (cardsSyncing) {
+        banner.className = CARDS_SYNC_CLASS;
+        banner.textContent = SYNC_NOTE_TEXT;
+        return;
+      }
+      banner.className = CARDS_WARN_CLASS;
       if (cardsState.source === "cache") {
         banner.textContent = "⚠ Référentiel de cartes hors-ligne — dernière synchronisation réussie : " + formatTimestamp(cardsState.fetchedAt) + ". Les cartes les plus récentes peuvent manquer.";
       } else {
@@ -662,7 +762,8 @@
       // Retourne la promesse (inutilisé par l'appli elle-même, qui l'appelle "en tir et oublie" —
       // utile pour les tests, qui ont besoin d'attendre sa résolution avant de vérifier le résultat).
       return fetchRemoteMeta().then(remote => {
-        if (!remote) return; // rien de mieux à afficher : on garde ce qui est déjà à l'écran
+        metaSyncing = false; // Lot UX 1 (#7) : tentative terminée
+        if (!remote) { renderMetaFreshnessBadge(); return; } // échec réel : on garde ce qui est à l'écran et on l'indique
         saveMetaCache(remote);
         metaState = { archetypes: remote.archetypes, source: "remote", updatedAt: remote.updatedAt || null, fetchedAt: Date.now(), appVersion: remote.appVersion || null, appDownloadUrl: remote.appDownloadUrl || null };
         renderMetaSelector();
@@ -1051,15 +1152,24 @@
     // Indicateur visuel demandé par Roadmap : montre clairement quand l'appli ne tourne PAS sur la
     // dernière liste méta connue en ligne, pour que Nicolas (ou un ami) ne prenne pas un vieux méta
     // pour le plus récent sans le savoir.
+    // Lot UX 1 (#7) : même principe que le bandeau du référentiel (message neutre pendant la tentative).
+    let metaSyncing = false;
+    const META_WARN_CLASS = "mb-3 rounded-lg border border-amber-500/40 bg-amber-950/30 px-3 py-2 text-xs text-amber-300";
+    const META_SYNC_CLASS = "mb-3 rounded-lg border border-zinc-800 bg-zinc-900/50 px-3 py-2 text-xs text-zinc-400";
     function renderMetaFreshnessBadge() {
       const badge = document.getElementById("metaFreshness");
       if (!badge) return;
       if (metaState.source === "remote") {
-        badge.classList.add("hidden");
+        badge.className = META_WARN_CLASS + " hidden";
         badge.textContent = "";
         return;
       }
-      badge.classList.remove("hidden");
+      if (metaSyncing) {
+        badge.className = META_SYNC_CLASS;
+        badge.textContent = SYNC_NOTE_TEXT;
+        return;
+      }
+      badge.className = META_WARN_CLASS;
       if (metaState.source === "cache") {
         const dateLabel = metaState.updatedAt ? formatMetaDate(metaState.updatedAt) : null;
         badge.textContent = "⚠ Liste méta hors-ligne" + (dateLabel ? (" — dernière mise à jour connue : " + dateLabel) : " — dernière mise à jour connue non datée") + ".";
@@ -1405,7 +1515,7 @@
       cardEditorDraft = { deckId: deck.id, cards: deck.cards.slice() };
 
       const extOptions = '<option value="">Toutes extensions</option>' +
-        ALL_EXTENSIONS.map(ext => '<option value="' + escapeAttr(ext) + '">' + escapeHtml(ext.indexOf("P-") === 0 ? ext + " (promos)" : ext) + '</option>').join("");
+        orderedExtensions().map(ext => '<option value="' + escapeAttr(ext) + '">' + escapeHtml(extLabel(ext)) + '</option>').join("");
 
       openModal("Éditer les cartes — " + deck.name,
         '<div class="space-y-3">' +
@@ -1502,7 +1612,7 @@
       if (k === "couronne") return { txt: "♛", cls: "crown" };
       if (k === "◇?") return { txt: "◇", cls: "" };
       const m = /^([◇★☆])(\d)$/.exec(k);
-      if (m) return { txt: m[1].repeat(Number(m[2])), cls: m[1] === "◇" ? "" : "star" };
+      if (m) return { txt: m[1].repeat(Number(m[2])), cls: m[1] === "★" ? "star" : (m[1] === "☆" ? "shiny" : "") };
       return { txt: k === "?" ? "—" : k, cls: "" };
     }
     function rarityLabel(key) {
@@ -1512,9 +1622,8 @@
 
     function openPokedex() {
       cardEditorDraft = null; // pas de deck concerné
-      pkdx = { q: "", ext: "", own: "all", rar: new Set(), visible: PKDX_LOT, showStats: false };
-      const extOptions = '<option value="">Toutes les extensions</option>' +
-        ALL_EXTENSIONS.map(ext => '<option value="' + escapeAttr(ext) + '">' + escapeHtml(isPromo({ extension: ext }) ? ext + " (promos)" : ext) + '</option>').join("");
+      pkdx = { q: "", ext: "", serie: "", own: "all", rar: new Set(), visible: PKDX_LOT, showStats: false };
+      const extOptions = pkdxExtOptionsHtml();
       openInfoModal("Index.Pckt",
         '<div class="space-y-3">' +
           '<div id="cardEditorWarning" class="hidden rounded-lg border border-amber-500/40 bg-amber-950/30 px-3 py-2 text-xs text-amber-300"></div>' +
@@ -1523,8 +1632,9 @@
           '<div id="pkdxStats" class="hidden space-y-3 rounded-xl border border-zinc-800 bg-zinc-950/60 p-3"></div>' +
           '<div class="grid grid-cols-1 gap-2 sm:grid-cols-3">' +
             '<input id="pkdxSearch" type="search" placeholder="Rechercher un nom (ex. evoli)…" class="pkdx-field sm:col-span-2" />' +
-            '<select id="pkdxExt" class="pkdx-field">' + extOptions + '</select>' +
+            '<select id="pkdxExt" class="pkdx-field" aria-label="Extension">' + extOptions + '</select>' +
           '</div>' +
+          '<div id="pkdxSerieRow" class="pkdx-row hidden"><span class="pkdx-lbl">Série</span><div id="pkdxSeries" class="pkdx-seg" role="group" aria-label="Série"></div></div>' +
           '<div class="pkdx-seg" role="group" aria-label="Possession">' +
             '<button type="button" data-own="all" onclick="pkdxSetOwn(\'all\')">Toutes</button>' +
             '<button type="button" data-own="owned" onclick="pkdxSetOwn(\'owned\')">Possédées</button>' +
@@ -1546,7 +1656,51 @@
       }
       document.getElementById("pkdxSearch").addEventListener("input", e => { pkdx.q = e.target.value; pkdxRefresh(); });
       document.getElementById("pkdxExt").addEventListener("change", e => { pkdx.ext = e.target.value; pkdxRefresh(); });
+      pkdxRenderSeries();
       pkdxRefresh();
+    }
+    // #2 : options du filtre d'extension, regroupées par série (séries lues dans extensions.json)
+    function pkdxExtOptionsHtml() {
+      const opt = ext => '<option value="' + escapeAttr(ext) + '">' + escapeHtml(extLabel(ext)) + '</option>';
+      const serie = pkdx ? pkdx.serie : "";
+      const exts = orderedExtensions().filter(c => !serie || extSerie(c) === serie);
+      let html = '<option value="">Toutes les extensions</option>';
+      const series = seriesList();
+      if (!series.length) return html + exts.map(opt).join("");
+      series.forEach(s => {
+        const g = exts.filter(c => extSerie(c) === s);
+        if (g.length) html += '<optgroup label="' + escapeAttr("Série " + s) + '">' + g.map(opt).join("") + '</optgroup>';
+      });
+      const others = exts.filter(c => !extSerie(c));
+      if (others.length) html += '<optgroup label="Autres">' + others.map(opt).join("") + '</optgroup>';
+      return html;
+    }
+    function pkdxRenderSeries() {
+      const row = document.getElementById("pkdxSerieRow");
+      if (!row) return;
+      const series = seriesList();
+      row.classList.toggle("hidden", series.length === 0);
+      if (pkdx.serie && series.indexOf(pkdx.serie) === -1) pkdx.serie = "";
+      document.getElementById("pkdxSeries").innerHTML =
+        '<button type="button" data-serie-idx="-1" class="' + (pkdx.serie ? "" : "on") + '" aria-pressed="' + !pkdx.serie + '" onclick="pkdxSetSerieIdx(-1)">Toutes</button>' +
+        series.map((s, i) => '<button type="button" data-serie-idx="' + i + '" class="' + (pkdx.serie === s ? "on" : "") + '" aria-pressed="' + (pkdx.serie === s) + '" onclick="pkdxSetSerieIdx(' + i + ')">' + escapeHtml(s) + '</button>').join("");
+    }
+    function pkdxSetSerieIdx(i) {
+      const series = seriesList();
+      pkdx.serie = (i >= 0 && i < series.length) ? series[i] : "";
+      if (pkdx.ext && pkdx.serie && extSerie(pkdx.ext) !== pkdx.serie) pkdx.ext = "";
+      const sel = document.getElementById("pkdxExt");
+      sel.innerHTML = pkdxExtOptionsHtml(); sel.value = pkdx.ext;
+      pkdxRenderSeries();
+      pkdxRefresh();
+    }
+    // extensions.json arrivé pendant que la fenêtre est ouverte : on met à jour libellés, séries et stats
+    // sans toucher à la grille (les filtres en cours ne changent pas de sens)
+    function pkdxRebuildExtControls() {
+      const sel = document.getElementById("pkdxExt");
+      sel.innerHTML = pkdxExtOptionsHtml(); sel.value = pkdx.ext;
+      pkdxRenderSeries();
+      pkdxRenderStats();
     }
     // Compatibilité : l'ancien nom reste utilisable (il ouvre le Pokédex)
     function openCollectionManager() { openPokedex(); }
@@ -1563,6 +1717,7 @@
       return ALL_CARDS.filter(c => {
         if (q && pkdxNormName(c).indexOf(q) === -1) return false;
         if (pkdx.ext && c.extension !== pkdx.ext) return false;
+        if (pkdx.serie && extSerie(c.extension) !== pkdx.serie) return false;
         if (pkdx.rar.size && !pkdx.rar.has(rarityKey(c))) return false;
         if (withOwnership !== false) {
           const owned = getOwnedCount(c.id) >= 1;
@@ -1587,9 +1742,10 @@
 
     function pkdxRefresh() {
       pkdx.visible = PKDX_LOT; // nouveau filtre = on repart du premier lot
-      document.querySelectorAll(".pkdx-seg button").forEach(b => b.classList.toggle("on", b.getAttribute("data-own") === pkdx.own));
+      document.querySelectorAll(".pkdx-seg button[data-own]").forEach(b => b.classList.toggle("on", b.getAttribute("data-own") === pkdx.own));
+      const rarCls = k => k.charAt(0) === "★" ? " rar-star" : (k.charAt(0) === "☆" ? " rar-shiny" : (k === "couronne" ? " rar-crown" : ""));
       document.getElementById("pkdxRarities").innerHTML = PKDX_RARITIES.map(r =>
-        '<button type="button" class="pkdx-chip' + (pkdx.rar.has(r.key) ? " on" : "") + '" aria-pressed="' + pkdx.rar.has(r.key) + '" onclick="pkdxToggleRarity(\'' + r.key + '\')">' + r.label + '</button>').join("");
+        '<button type="button" class="pkdx-chip' + rarCls(r.key) + (pkdx.rar.has(r.key) ? " on" : "") + '" aria-pressed="' + pkdx.rar.has(r.key) + '" onclick="pkdxToggleRarity(\'' + r.key + '\')">' + r.label + '</button>').join("");
       pkdxRenderSummary();
       pkdxRenderStats();
       pkdxRenderGrid();
@@ -1607,7 +1763,7 @@
       document.getElementById("pkdxStatsToggle").textContent = pkdx.showStats ? "📊 Masquer les statistiques" : "📊 Statistiques détaillées";
       el.classList.toggle("hidden", !pkdx.showStats);
       if (!pkdx.showStats) return;
-      const byExt = ALL_EXTENSIONS.map(ext => pkdxGauge(ext, pkdxCount(ALL_CARDS.filter(c => c.extension === ext)), true)).join("");
+      const byExt = pkdxStatsByExtHtml();
       const sel = pkdxFilter(false);
       const keys = PKDX_RARITIES.map(r => r.key).concat(["◇?"]);
       const byRar = keys.map(k => {
@@ -1615,9 +1771,39 @@
         return cards.length ? pkdxGauge(rarityLabel(k), pkdxCount(cards), true) : "";
       }).join("");
       el.innerHTML =
-        '<div><div class="mb-2 text-xs font-semibold uppercase tracking-wider text-zinc-400">Par extension</div><div class="pkdx-2col">' + byExt + '</div></div>' +
+        '<div><div class="mb-2 text-xs font-semibold uppercase tracking-wider text-zinc-400">Par extension</div>' + byExt + '</div>' +
         '<div><div class="mb-2 text-xs font-semibold uppercase tracking-wider text-zinc-400">Par rareté — sélection en cours (' + sel.length + ' cartes)</div>' +
         '<div class="pkdx-2col">' + (byRar || '<p class="text-xs text-zinc-600">Aucune carte dans la sélection.</p>') + '</div></div>';
+    }
+    // #6 : un bloc par extension (total + « Cartes de base »), regroupés par série quand extensions.json est connu
+    const PKDX_NEAR_THRESHOLD = 5; // « Plus que N cartes » dès qu'il manque 5 cartes de base ou moins
+    function pkdxExtBlock(ext) {
+      const cards = ALL_CARDS.filter(c => c.extension === ext);
+      const base = extBase(ext);
+      let badge = "", baseGauge = "";
+      if (base) {
+        const bc = pkdxCount(cards.filter(c => isBaseCard(c, base)));
+        const missing = bc.total - bc.owned;
+        if (bc.total > 0 && missing === 0) badge = '<span class="pkdx-badge done">Base complète ✅</span>';
+        else if (missing > 0 && missing <= PKDX_NEAR_THRESHOLD) badge = '<span class="pkdx-badge near">Plus que ' + missing + ' carte' + (missing > 1 ? "s" : "") + '</span>';
+        baseGauge = pkdxGauge("Cartes de base", bc, true);
+      }
+      return '<div class="pkdx-ext" data-ext="' + escapeAttr(ext) + '"><div class="pkdx-ext-head"><span class="t">' + escapeHtml(extLabel(ext)) + '</span>' + badge + '</div>' +
+        pkdxGauge("Toutes", pkdxCount(cards), true) + baseGauge + '</div>';
+    }
+    function pkdxStatsByExtHtml() {
+      const exts = orderedExtensions();
+      const series = seriesList();
+      const grid = list => '<div class="pkdx-2col">' + list.map(pkdxExtBlock).join("") + '</div>';
+      if (!series.length) return grid(exts);
+      let html = "";
+      series.forEach(s => {
+        const g = exts.filter(c => extSerie(c) === s);
+        if (g.length) html += '<div class="pkdx-serie-title">Série ' + escapeHtml(s) + '</div>' + grid(g);
+      });
+      const others = exts.filter(c => !extSerie(c));
+      if (others.length) html += '<div class="pkdx-serie-title">Autres</div>' + grid(others);
+      return html;
     }
     function pkdxTileHtml(c) {
       const n = getOwnedCount(c.id);
@@ -2037,8 +2223,14 @@
     setInterval(updateClock, 1000);
     document.getElementById("metaTips").addEventListener("scroll", updateMetaScrollHint, { passive: true });
     window.addEventListener("resize", () => { fitBreakdown(); updateMetaScrollHint(); });
+    // Lot UX 1 (#7) : « Synchronisation… » pendant les tentatives, avertissement seulement en cas d'échec réel
+    cardsSyncing = !!(CARTES_REMOTE_URL && PROMOS_REMOTE_URL);
+    metaSyncing = !!META_REMOTE_URL;
+    renderCardsFreshnessBanner();
+    renderMetaFreshnessBadge();
     refreshCardsFromRemote();
     refreshMetaFromRemote();
+    refreshExtensionsFromRemote();
   </script>
 </body>
 </html>
