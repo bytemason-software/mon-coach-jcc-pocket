@@ -130,6 +130,34 @@
     .pkdx-badge { flex: none; padding: 2px 8px; border-radius: 9999px; font-size: 11px; font-weight: 700; white-space: nowrap; }
     .pkdx-badge.done { color: #09090b; background-image: linear-gradient(90deg, var(--brand-cyan), var(--brand-green)); }
     .pkdx-badge.near { color: #fcd34d; border: 1px solid rgb(245 158 11 / .5); }
+    /* ===== Lot UX 1, dépôt B (09/10/2026) : compteur − / +, « Cartes de base », action groupée ===== */
+    .pkdx-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+    .pkdx-tile { min-height: 128px; }
+    .pkdx-ctr { display: flex; align-items: center; gap: 4px; }
+    .pkdx-step { flex: none; width: 44px; height: 44px; border-radius: 10px; border: 1px solid #3f3f46; background: #18181b; color: #e4e4e7; font-size: 22px; font-weight: 700; line-height: 1; touch-action: manipulation; }
+    .pkdx-step.plus:not(:disabled) { border-color: rgb(34 211 238 / .6); color: #67e8f9; }
+    .pkdx-step:disabled { opacity: .3; cursor: default; }
+    .pkdx-step:not(:disabled):hover { filter: brightness(1.2); }
+    .pkdx-step:focus-visible, .pkdx-bulk:focus-visible, .pkdx-btn:focus-visible { outline: 2px solid var(--brand-cyan); outline-offset: 2px; }
+    .pkdx-ctr .pkdx-own { flex: 1; min-width: 0; width: auto; min-height: 44px; display: flex; align-items: center; justify-content: center; font-size: 14px; }
+    .pkdx-ctr .pkdx-own.n0 { color: #a1a1aa; }
+    .pkdx-basechip { min-height: 36px; }
+    .pkdx-bulkrow { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+    .pkdx-bulk { min-height: 44px; padding: 6px 14px; border-radius: 10px; border: 1px solid rgb(34 211 238 / .6); background: rgb(8 51 68 / .6); color: #cffafe; font-size: 13px; font-weight: 700; }
+    .pkdx-bulk:disabled { border-color: #3f3f46; background: #18181b; color: #a1a1aa; cursor: default; }
+    .pkdx-bulk:not(:disabled):hover { filter: brightness(1.15); }
+    .pkdx-confirm { padding: 12px; border-radius: 12px; border: 1px solid rgb(34 211 238 / .5); background: #0b1a20; }
+    .pkdx-confirm.hidden, .pkdx-undo.hidden { display: none; }
+    .pkdx-confirm-t { font-size: 14px; font-weight: 700; color: #f4f4f5; }
+    .pkdx-confirm-d { margin-top: 4px; font-size: 12.5px; color: #d4d4d8; }
+    .pkdx-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 10px; }
+    .pkdx-btn { min-height: 44px; padding: 8px 14px; border-radius: 10px; font-size: 13px; font-weight: 700; }
+    .pkdx-btn.primary { color: #09090b; background-image: linear-gradient(90deg, var(--brand-cyan), var(--brand-green)); }
+    .pkdx-btn.ghost { border: 1px solid #52525b; color: #e4e4e7; background: #18181b; }
+    .pkdx-btn:hover { filter: brightness(1.15); }
+    .pkdx-undo { position: sticky; bottom: 0; z-index: 5; display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 10px;
+      padding: 6px 6px 6px 12px; border-radius: 12px; border: 1px solid rgb(16 185 129 / .55); background: #052e22; color: #d1fae5; font-size: 13px; font-weight: 600;
+      box-shadow: 0 -8px 18px rgb(0 0 0 / .5); }
   </style>
   <!-- CSS Tailwind v3.4.17 COMPILÉ ET INTÉGRÉ (29/09/2026) — remplace le Play CDN (cdn.tailwindcss.com).
        Généré par le moteur Tailwind officiel (Play CDN 3.4.17, même configuration que l'ancien tailwind.config inline)
@@ -562,16 +590,19 @@
     function seriesList() {
       return [...new Set(orderedExtensions().map(extSerie).filter(Boolean))].sort((a, b) => a.localeCompare(b, "fr"));
     }
-    // Cartes de base (#6) d'une extension normale : numéros 001 à `base` (vérifié par programme le 09/10/2026 :
-    // ce sont exactement les cartes à losanges). Promos : pas de barre de base (en attente de validation).
+    // Cartes de base (#6) : extension normale = numéros 001 à `base` (vérifié par programme le 09/10/2026 :
+    // ce sont exactement les cartes à losanges) ; promos (P-…) = les cartes ◇ (décision de Nicolas du
+    // 09/10/2026, vérifié : nombre de ◇ = `base` du fichier, P-A 101, P-B 90).
     function extBase(code) {
       const info = EXT_INFO[code];
-      if (!info || String(code).indexOf("P-") === 0) return 0;
+      if (!info) return 0;
       return (Number.isInteger(info.base) && info.base > 0) ? info.base : 0;
     }
     function isBaseCard(card, base) {
+      if (!(base > 0)) return false;
+      if (String(card.extension).indexOf("P-") === 0) return card.rarete === "◇";
       const n = parseInt(card.numero, 10);
-      return base > 0 && !isNaN(n) && n >= 1 && n <= base;
+      return !isNaN(n) && n >= 1 && n <= base;
     }
     loadExtensionsFromCache();
 
@@ -1188,7 +1219,7 @@
     // lien cliqué manuellement (fonctionne aussi bien vers un zip GitHub que vers un lien de partage
     // Google Drive classique, voir roadmap-fonctionnalites.md) + une suggestion textuelle de nettoyage
     // manuel de l'ancien dossier, puisque la suppression automatique est elle aussi impossible.
-    const APP_VERSION = "2.0.0"; // à incrémenter par Développement à chaque nouvelle version partagée
+    const APP_VERSION = "2.1.0"; // à incrémenter par Développement à chaque nouvelle version partagée
 
     function renderUpdateBanner() {
       const banner = document.getElementById("updateBanner");
@@ -1622,7 +1653,7 @@
 
     function openPokedex() {
       cardEditorDraft = null; // pas de deck concerné
-      pkdx = { q: "", ext: "", serie: "", own: "all", rar: new Set(), visible: PKDX_LOT, showStats: false };
+      pkdx = { q: "", ext: "", serie: "", own: "all", base: false, rar: new Set(), visible: PKDX_LOT, showStats: false };
       const extOptions = pkdxExtOptionsHtml();
       openInfoModal("Index.Pckt",
         '<div class="space-y-3">' +
@@ -1635,15 +1666,23 @@
             '<select id="pkdxExt" class="pkdx-field" aria-label="Extension">' + extOptions + '</select>' +
           '</div>' +
           '<div id="pkdxSerieRow" class="pkdx-row hidden"><span class="pkdx-lbl">Série</span><div id="pkdxSeries" class="pkdx-seg" role="group" aria-label="Série"></div></div>' +
-          '<div class="pkdx-seg" role="group" aria-label="Possession">' +
-            '<button type="button" data-own="all" onclick="pkdxSetOwn(\'all\')">Toutes</button>' +
-            '<button type="button" data-own="owned" onclick="pkdxSetOwn(\'owned\')">Possédées</button>' +
-            '<button type="button" data-own="missing" onclick="pkdxSetOwn(\'missing\')">Manquantes</button>' +
+          '<div class="pkdx-row">' +
+            '<div class="pkdx-seg" role="group" aria-label="Possession">' +
+              '<button type="button" data-own="all" onclick="pkdxSetOwn(\'all\')">Toutes</button>' +
+              '<button type="button" data-own="owned" onclick="pkdxSetOwn(\'owned\')">Possédées</button>' +
+              '<button type="button" data-own="missing" onclick="pkdxSetOwn(\'missing\')">Manquantes</button>' +
+            '</div>' +
+            '<button type="button" id="pkdxBaseBtn" class="pkdx-chip pkdx-basechip" aria-pressed="false" onclick="pkdxToggleBase()">Cartes de base</button>' +
           '</div>' +
           '<div id="pkdxRarities" class="pkdx-chips" aria-label="Rareté"></div>' +
-          '<div id="pkdxCount" class="text-xs text-zinc-500"></div>' +
+          '<div class="pkdx-bulkrow">' +
+            '<div id="pkdxCount" class="text-xs text-zinc-500"></div>' +
+            '<button type="button" id="pkdxBulkBtn" class="pkdx-bulk" onclick="pkdxAskBulk()">Tout marquer possédé</button>' +
+          '</div>' +
+          '<div id="pkdxConfirm" class="pkdx-confirm hidden" role="group" aria-labelledby="pkdxConfirmTitle"></div>' +
           '<div id="pkdxGrid" class="pkdx-grid"></div>' +
           '<div id="pkdxMoreWrap"></div>' +
+          '<div id="pkdxUndo" class="pkdx-undo hidden" role="status"></div>' +
         '</div>');
       document.getElementById("modalPanel").classList.add("modal-wide");
       // Logo de l'Index.Pckt dans le titre (sphère dégradée rose → violet — SVG inline, aucune image)
@@ -1657,6 +1696,7 @@
       document.getElementById("pkdxSearch").addEventListener("input", e => { pkdx.q = e.target.value; pkdxRefresh(); });
       document.getElementById("pkdxExt").addEventListener("change", e => { pkdx.ext = e.target.value; pkdxRefresh(); });
       pkdxRenderSeries();
+      pkdxRenderBaseChip();
       pkdxRefresh();
     }
     // #2 : options du filtre d'extension, regroupées par série (séries lues dans extensions.json)
@@ -1700,7 +1740,7 @@
       const sel = document.getElementById("pkdxExt");
       sel.innerHTML = pkdxExtOptionsHtml(); sel.value = pkdx.ext;
       pkdxRenderSeries();
-      pkdxRenderStats();
+      if (pkdxRenderBaseChip()) pkdxRefresh(); else { pkdxRenderStats(); pkdxRenderBulk(); }
     }
     // Compatibilité : l'ancien nom reste utilisable (il ouvre le Pokédex)
     function openCollectionManager() { openPokedex(); }
@@ -1719,6 +1759,7 @@
         if (pkdx.ext && c.extension !== pkdx.ext) return false;
         if (pkdx.serie && extSerie(c.extension) !== pkdx.serie) return false;
         if (pkdx.rar.size && !pkdx.rar.has(rarityKey(c))) return false;
+        if (pkdx.base && !isBaseCard(c, extBase(c.extension))) return false;
         if (withOwnership !== false) {
           const owned = getOwnedCount(c.id) >= 1;
           if (pkdx.own === "owned" && !owned) return false;
@@ -1746,9 +1787,12 @@
       const rarCls = k => k.charAt(0) === "★" ? " rar-star" : (k.charAt(0) === "☆" ? " rar-shiny" : (k === "couronne" ? " rar-crown" : ""));
       document.getElementById("pkdxRarities").innerHTML = PKDX_RARITIES.map(r =>
         '<button type="button" class="pkdx-chip' + rarCls(r.key) + (pkdx.rar.has(r.key) ? " on" : "") + '" aria-pressed="' + pkdx.rar.has(r.key) + '" onclick="pkdxToggleRarity(\'' + r.key + '\')">' + r.label + '</button>').join("");
+      pkdxCloseConfirm();
       pkdxRenderSummary();
       pkdxRenderStats();
       pkdxRenderGrid();
+      pkdxRenderBulk();
+      pkdxRenderUndo();
     }
     function pkdxRenderSummary() {
       const el = document.getElementById("pkdxSummary");
@@ -1805,15 +1849,32 @@
       if (others.length) html += '<div class="pkdx-serie-title">Autres</div>' + grid(others);
       return html;
     }
+    // #4 : compteur − / + (0 à 2). Toucher la tuile ne change rien : seuls − et + modifient le nombre.
     function pkdxTileHtml(c) {
       const n = getOwnedCount(c.id);
       const rs = raritySymbols(c);
-      const ownLabel = n === 0 ? "Non possédée" : "×" + n;
+      const nom = escapeAttr(c.nom);
       return '<div class="pkdx-tile ' + (n ? "owned" : "missing") + '" data-id="' + escapeAttr(c.id) + '">' +
         '<div class="pkdx-name">' + escapeHtml(c.nom) + '</div>' +
         '<div class="pkdx-meta"><span>' + escapeHtml(c.id) + '</span><span class="pkdx-rar ' + rs.cls + '">' + escapeHtml(rs.txt) + '</span></div>' +
-        '<button type="button" class="pkdx-own n' + n + '" title="Possession : 0 → 1 → 2 → 0" onclick="' + "pkdxCycle('" + jsAttrEscape(c.id) + "')" + '">' + ownLabel + '</button>' +
+        '<div class="pkdx-ctr" role="group" aria-label="Exemplaires possédés de ' + nom + '">' +
+          '<button type="button" class="pkdx-step minus" aria-label="Retirer un exemplaire de ' + nom + '" onclick="pkdxStep(this,-1)"' + (n <= 0 ? " disabled" : "") + '>−</button>' +
+          '<span class="pkdx-own n' + n + '" aria-live="polite">' + (n ? "×" + n : "0") + '</span>' +
+          '<button type="button" class="pkdx-step plus" aria-label="Ajouter un exemplaire de ' + nom + '" onclick="pkdxStep(this,1)"' + (n >= 2 ? " disabled" : "") + '>+</button>' +
+        '</div>' +
       '</div>';
+    }
+    // Met la tuile à jour sur place (le focus clavier reste sur le bouton ; s'il vient d'être désactivé, il passe à l'autre)
+    function pkdxSyncTile(tile, id) {
+      const n = getOwnedCount(id);
+      tile.classList.toggle("owned", n > 0); tile.classList.toggle("missing", n === 0);
+      const own = tile.querySelector(".pkdx-own");
+      own.className = "pkdx-own n" + n; own.textContent = n ? "×" + n : "0";
+      const minus = tile.querySelector(".pkdx-step.minus"), plus = tile.querySelector(".pkdx-step.plus");
+      const hadFocus = document.activeElement;
+      minus.disabled = n <= 0; plus.disabled = n >= 2;
+      if (hadFocus === minus && minus.disabled) plus.focus();
+      else if (hadFocus === plus && plus.disabled) minus.focus();
     }
     function pkdxRenderGrid() {
       const grid = document.getElementById("pkdxGrid");
@@ -1827,15 +1888,114 @@
         ? '<button type="button" class="pkdx-more" onclick="pkdxShowMore()">Afficher plus (' + Math.min(rest, PKDX_LOT) + ' sur ' + rest + ' restante' + (rest > 1 ? "s" : "") + ')</button>'
         : "";
     }
-    // Bascule 0 → 1 → 2 → 0 sur la tuile : on ne remet à jour que la tuile et les compteurs
-    // (la grille n'est pas refiltrée, pour qu'une carte ne "saute" pas sous le doigt en mode "Manquantes").
-    function pkdxCycle(id) {
-      cycleOwned(id);
-      const card = CARD_BY_ID[id];
-      const tile = document.querySelector('.pkdx-tile[data-id="' + (window.CSS && CSS.escape ? CSS.escape(id) : id) + '"]');
-      if (card && tile) tile.outerHTML = pkdxTileHtml(card);
+    // − / + : bornes 0 et 2 relues à chaque appui (des appuis rapides ne peuvent pas dépasser) ; on ne remet
+    // à jour que la tuile et les compteurs (pas de refiltrage : une carte ne "saute" pas sous le doigt).
+    function pkdxStep(btn, delta) {
+      const tile = btn && btn.closest ? btn.closest(".pkdx-tile") : null;
+      const id = tile ? tile.getAttribute("data-id") : null;
+      if (!id) return;
+      const cur = getOwnedCount(id);
+      const n = Math.max(0, Math.min(2, cur + (delta > 0 ? 1 : -1)));
+      if (n === cur) { pkdxSyncTile(tile, id); return; }
+      setOwnedCount(id, n);
+      pkdxUndoState = null; // toute autre modification efface « Annuler »
+      pkdxCloseConfirm();
+      pkdxSyncTile(tile, id);
       pkdxRenderSummary();
       pkdxRenderStats();
+      pkdxRenderBulk();
+      pkdxRenderUndo();
+    }
+
+    // ---------- #5 : filtre « Cartes de base » + « Tout marquer possédé » (Lot UX 1, dépôt B) ----------
+    function pkdxHasBaseInfo() { return orderedExtensions().some(c => extBase(c) > 0); }
+    // Puce masquée si extensions.json est absent (repli) ; renvoie true si le filtre a dû être désactivé
+    function pkdxRenderBaseChip() {
+      const b = document.getElementById("pkdxBaseBtn");
+      if (!b) return false;
+      const has = pkdxHasBaseInfo();
+      const reset = !has && pkdx.base;
+      if (reset) pkdx.base = false;
+      b.classList.toggle("hidden", !has);
+      b.classList.toggle("on", pkdx.base);
+      b.setAttribute("aria-pressed", String(pkdx.base));
+      return reset;
+    }
+    function pkdxToggleBase() { pkdx.base = !pkdx.base; pkdxRenderBaseChip(); pkdxRefresh(); }
+    // Cartes de la sélection en cours (tous les filtres, possession comprise) qui passeront réellement de 0 à 1
+    function pkdxBulkTargets() { return pkdxFilter(true).filter(c => getOwnedCount(c.id) === 0); }
+    function pkdxRenderBulk() {
+      const b = document.getElementById("pkdxBulkBtn");
+      if (!b) return;
+      const n = pkdxBulkTargets().length;
+      b.disabled = n === 0;
+      b.textContent = n ? "Tout marquer possédé (" + n + ")" : "Tout marquer possédé";
+      b.title = n ? "" : "Toutes les cartes de la sélection sont déjà possédées";
+    }
+    function pkdxAskBulk() {
+      const el = document.getElementById("pkdxConfirm");
+      const n = pkdxBulkTargets().length;
+      if (!el || !n) return;
+      const sel = pkdxFilter(true).length;
+      el.innerHTML =
+        '<p id="pkdxConfirmTitle" class="pkdx-confirm-t">Marquer ' + n + ' carte' + (n > 1 ? "s" : "") + ' comme possédée' + (n > 1 ? "s" : "") + ' (×1) ?</p>' +
+        '<p class="pkdx-confirm-d">Seules les cartes manquantes de la sélection en cours changent (' + n + ' sur ' + sel + '). Les cartes que vous avez déjà, en ×1 ou en ×2, ne bougent pas.</p>' +
+        '<div class="pkdx-actions">' +
+          '<button type="button" class="pkdx-btn ghost" onclick="pkdxCloseConfirm()">Non, revenir</button>' +
+          '<button type="button" class="pkdx-btn primary" onclick="pkdxConfirmBulk()">Oui, marquer ' + n + ' carte' + (n > 1 ? "s" : "") + '</button>' +
+        '</div>';
+      el.classList.remove("hidden");
+      if (el.scrollIntoView) el.scrollIntoView({ block: "nearest" });
+      el.querySelector(".pkdx-btn.ghost").focus();
+    }
+    function pkdxCloseConfirm() {
+      const el = document.getElementById("pkdxConfirm");
+      if (!el || el.classList.contains("hidden")) return;
+      const wasFocused = el.contains(document.activeElement);
+      el.classList.add("hidden"); el.innerHTML = "";
+      const b = document.getElementById("pkdxBulkBtn");
+      if (wasFocused && b && !b.disabled) b.focus();
+    }
+    function pkdxConfirmBulk() {
+      const el = document.getElementById("pkdxConfirm");
+      if (!el || el.classList.contains("hidden")) return; // double appui : une seule application
+      el.classList.add("hidden"); el.innerHTML = "";
+      const targets = pkdxBulkTargets();               // recalculé au moment d'agir, uniquement 0 → 1
+      if (!targets.length) { pkdxRenderBulk(); return; }
+      targets.forEach(c => { collection[c.id] = 1; });
+      saveCollection();
+      pkdxUndoState = { ids: targets.map(c => c.id), stamp: pkdxCollectionStamp() };
+      pkdxRefresh();
+      const u = document.querySelector("#pkdxUndo button");
+      if (u) u.focus();
+    }
+    // « Annuler » : en mémoire seulement (aucune clé de stockage, rien dans la sauvegarde). Valable tant que la
+    // collection n'a pas changé depuis l'action groupée (empreinte), donc effacé par toute autre modification
+    // (− / +, éditeur de decks, restauration, reset) et au rechargement de la page.
+    let pkdxUndoState = null;
+    function pkdxCollectionStamp() { return JSON.stringify(collection); }
+    function pkdxUndoValid() {
+      if (pkdxUndoState && pkdxUndoState.stamp !== pkdxCollectionStamp()) pkdxUndoState = null;
+      return !!pkdxUndoState;
+    }
+    function pkdxRenderUndo() {
+      const el = document.getElementById("pkdxUndo");
+      if (!el) return;
+      if (!pkdxUndoValid()) { el.classList.add("hidden"); el.innerHTML = ""; return; }
+      const n = pkdxUndoState.ids.length;
+      el.innerHTML = '<span>✓ ' + n + ' carte' + (n > 1 ? "s" : "") + ' marquée' + (n > 1 ? "s" : "") + ' possédée' + (n > 1 ? "s" : "") + '.</span>' +
+        '<button type="button" class="pkdx-btn ghost" onclick="pkdxUndoBulk()">Annuler</button>';
+      el.classList.remove("hidden");
+    }
+    function pkdxUndoBulk() {
+      if (pkdxUndoValid()) {
+        pkdxUndoState.ids.forEach(id => { if (collection[id] === 1) delete collection[id]; });
+        saveCollection();
+      }
+      pkdxUndoState = null;
+      pkdxRefresh();
+      const b = document.getElementById("pkdxBulkBtn");
+      if (b && !b.disabled) b.focus();
     }
 
     // ---------- PAGINATION DES RÉSULTATS DE L'ÉDITEUR DE CARTES ----------
@@ -2026,6 +2186,7 @@
       if (!v.ok) return v;
       state = v.state;
       collection = v.collection;
+      pkdxUndoState = null; // « Annuler » d'Index.Pckt effacé par une restauration
       save();
       saveCollection();
       selectedDeckId = null;
@@ -2121,6 +2282,7 @@
         "<p class=\"text-sm text-zinc-400\">Vider TOUT le cache (points, objectifs, decks, historique) et restaurer les decks par défaut ? La collection de cartes possédées n'est PAS affectée par ce reset. Action irréversible.</p>",
         () => {
           localStorage.removeItem(STORAGE_KEY);
+          pkdxUndoState = null; // « Annuler » d'Index.Pckt effacé par un reset
           state = {
             points: 1000, baselinePoints: 1000, targetPoints: 2000, targetRank: 10000,
             decks: materializeDefaultDecks(),
