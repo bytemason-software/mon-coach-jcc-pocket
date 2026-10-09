@@ -9,8 +9,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Mon Coach JCC Pocket - Pro Edition v2.0</title>
-  <meta name="description" content="Dashboard tournoi JCC Pocket - Pro Edition v2.0" />
+  <title>Mon Coach JCC Pocket - Pro Edition v2.1</title>
+  <meta name="description" content="Dashboard tournoi JCC Pocket - Pro Edition v2.1" />
   <!-- PWA (installation "écran d'accueil") : manifest + icônes, chemins relatifs (site dans /mon-coach-jcc-pocket/).
        Volontairement SANS service worker : l'icône ouvre toujours la version en ligne à jour. -->
   <link rel="manifest" href="manifest.webmanifest" />
@@ -158,6 +158,7 @@
     .pkdx-undo { position: sticky; bottom: 0; z-index: 5; display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 10px;
       padding: 6px 6px 6px 12px; border-radius: 12px; border: 1px solid rgb(16 185 129 / .55); background: #052e22; color: #d1fae5; font-size: 13px; font-weight: 600;
       box-shadow: 0 -8px 18px rgb(0 0 0 / .5); }
+    .pkdx-undo-actions { display: flex; flex: none; gap: 6px; }
   </style>
   <!-- CSS Tailwind v3.4.17 COMPILÉ ET INTÉGRÉ (29/09/2026) — remplace le Play CDN (cdn.tailwindcss.com).
        Généré par le moteur Tailwind officiel (Play CDN 3.4.17, même configuration que l'ancien tailwind.config inline)
@@ -193,7 +194,7 @@
           <h1 class="text-2xl font-bold tracking-tight text-white sm:text-3xl">
             Mon Coach <span class="brand-grad-text">JCC Pocket</span>
           </h1>
-          <p class="text-sm text-zinc-500">Pro Edition v2.0 — Coach compétitif JCC Pocket</p>
+          <p class="text-sm text-zinc-500">Pro Edition v2.1 — Coach compétitif JCC Pocket</p>
         </div>
       </div>
       <div class="flex items-center gap-4">
@@ -404,7 +405,7 @@
 
     <!-- FOOTER -->
     <footer class="mt-6 flex flex-col items-center gap-3 border-t border-zinc-800 pt-5 sm:flex-row sm:justify-between">
-      <p class="text-xs text-zinc-600">Mon Coach JCC Pocket — Pro Edition v2.0 · Sauvegarde locale automatique</p>
+      <p class="text-xs text-zinc-600">Mon Coach JCC Pocket — Pro Edition v2.1 · Sauvegarde locale automatique</p>
       <!-- Mes données (01/10/2026) : sauvegarde / restauration par fichier, tout reste sur l'appareil (aucune requête réseau) -->
       <div class="footer-actions flex flex-wrap items-center justify-center gap-2">
         <button onclick="exportBackup()" title="Télécharge un fichier avec vos decks, votre collection, vos matchs, vos points et vos objectifs" class="rounded-lg border border-zinc-700 px-4 py-2 text-xs font-bold text-zinc-300 transition hover:bg-zinc-800">💾 Sauvegarder mes données</button>
@@ -1983,9 +1984,19 @@
       if (!el) return;
       if (!pkdxUndoValid()) { el.classList.add("hidden"); el.innerHTML = ""; return; }
       const n = pkdxUndoState.ids.length;
-      el.innerHTML = '<span>✓ ' + n + ' carte' + (n > 1 ? "s" : "") + ' marquée' + (n > 1 ? "s" : "") + ' possédée' + (n > 1 ? "s" : "") + '.</span>' +
-        '<button type="button" class="pkdx-btn ghost" onclick="pkdxUndoBulk()">Annuler</button>';
+      el.innerHTML = '<span>✓ ' + n + ' carte' + (n > 1 ? "s" : "") + ' enregistrée' + (n > 1 ? "s" : "") + ' dans votre collection.</span>' +
+        '<span class="pkdx-undo-actions">' +
+          '<button type="button" class="pkdx-btn ghost" onclick="pkdxUndoBulk()">Annuler</button>' +
+          '<button type="button" class="pkdx-btn primary" onclick="pkdxUndoDismiss()">OK</button>' +
+        '</span>';
       el.classList.remove("hidden");
+    }
+    // « OK » : garde les cartes (déjà enregistrées) et ferme le bandeau ; « Annuler » n'est plus proposé
+    function pkdxUndoDismiss() {
+      pkdxUndoState = null;
+      pkdxRenderUndo();
+      const b = document.getElementById("pkdxBulkBtn");
+      if (b && !b.disabled) b.focus();
     }
     function pkdxUndoBulk() {
       if (pkdxUndoValid()) {
